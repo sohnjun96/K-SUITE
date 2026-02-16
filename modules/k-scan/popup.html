@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>K-SCAN</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --card: #ffffff;
+      --line: #e2e8f0;
+      --accent: #0F346E;
+      --accent-2: #FCB034;
+      --bg: #f8fafc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Noto Sans KR", "Apple SD Gothic Neo", ui-sans-serif, system-ui, sans-serif;
+      background:
+        radial-gradient(420px 220px at -10% -10%, #e2e8f0 0%, rgba(226,232,240,0) 70%),
+        radial-gradient(420px 220px at 110% -10%, #fde68a 0%, rgba(253,230,138,0) 70%),
+        var(--bg);
+      color: var(--ink);
+    }
+
+    .app {
+      width: 360px;
+      padding: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .logo {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+    }
+
+    .logoSvg { width: 28px; height: 28px; }
+
+    .title {
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -0.2px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      margin: 10px 0 6px;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      background: #f8fafc;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15, 52, 110, 0.12);
+      background: #ffffff;
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    #promptTpl { min-height: 110px; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+    }
+
+    button:active { transform: translateY(1px); }
+
+    #start {
+      background: linear-gradient(135deg, var(--accent) 0%, #143a7a 60%, #1d4ed8 100%);
+      color: #ffffff;
+      box-shadow: 0 8px 16px rgba(15, 52, 110, 0.25);
+    }
+
+    #stop {
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid var(--line);
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #0f172a;
+      background: #f1f5f9;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      font-size: 11px;
+      color: #475569;
+      margin-bottom: 6px;
+
+      .copyright {
+        margin-top: 8px;
+        font-size: 8px;
+        color: var(--muted);
+        line-height: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo"><svg class="logoSvg" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M32 4L4 16V30C4 44.6 15.4 56.8 32 60C48.6 56.8 60 44.6 60 30V16L32 4Z" fill="#0F346E"/>
+  <path d="M20 18V46" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <path d="M44 18L20 32L44 46" stroke="#FCB034" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg></div>
+      <div>
+        <div class="title">K-SCAN</div>
+        <div class="subtitle">출원발명 vs 인용발명 유사도 평가</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="chip">연결 설정</div>
+      <label for="token">API 키 (Bearer 토큰)</label>
+      <input id="token" type="password" placeholder="예: sk-..." autocomplete="off" />
+    </div>
+
+    <div class="card">
+      <div class="chip">비교 텍스트</div>
+      <label for="appText">출원발명 텍스트</label>
+      <textarea id="appText" placeholder="출원발명 내용을 붙여넣기"></textarea>
+
+      <label for="promptTpl">프롬프트 템플릿</label>
+      <textarea id="promptTpl" placeholder="예: text1 {출원발명} text2 {인용발명} text3"></textarea>
+      <div class="hint">템플릿에서 <code>{출원발명}</code>, <code>{인용발명}</code> 자리에 자동으로 치환됩니다.</div>
+    </div>
+
+    <div class="actions">
+      <button id="start">캡처 시작</button>
+      <button id="stop">캡처 중지</button>
+    </div>
+
+    <div class="status" id="status">대기 중</div>
+    <div class="hint">KOMPASS 창에서 시작을 누르고, 확인하고 싶은 건을 선택하세요. <br/>
+      감지 즉시 프롬프트를 생성해 API로 전송하고 결과 창을 엽니다.</div>
+    <footer>
+      <p class="copyright">© 2026. 반도체설계심사과 심사관 손준혁. All Rights Reserved.</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+
+</body>
+</html>

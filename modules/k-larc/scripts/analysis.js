@@ -280,14 +280,13 @@ async function runAnalysis() {
 }
 
 async function runStepAForClaim(claim) {
-  const systemPrompt = await fetch('prompts/stepA_features_prompt.txt').then(response => response.text());
-  const userMessage = `[Claim ID: ${claim.id}]\n${claim.text}`;
+  const promptPair = await renderLarcPromptPair('stepAFeatures', {
+    claim_id: claim.id,
+    claim_text: claim.text
+  });
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
-    ]
+    messages: promptPair.messages
   };
 
   const response = await sendLLMRequest(payload);
@@ -348,20 +347,21 @@ function buildQuickVerificationFlags(rawVerification, rawRelevant, normalizedRel
 }
 
 async function runQuickAnalysisForClaim(claim, mapInfo, fileIds) {
-  const basePrompt = await fetch('prompts/stepQuick_analysis_prompt.txt').then(response => response.text());
-  const systemPrompt = basePrompt.replace('{{mapInfo}}', mapInfo);
   const quickInput = {
     claimId: claim.id,
     claimName: claim.name,
     claimText: claim.text
   };
-  const userMessage = `Quick Mode Input (JSON):\n${JSON.stringify(quickInput, null, 2)}\n\nTarget Claim:\n[Claim ID: ${claim.id}] ${claim.name}\n${claim.text}`;
+  const promptPair = await renderLarcPromptPair('stepQuickAnalysis', {
+    mapInfo,
+    quick_input_json: quickInput,
+    claim_id: claim.id,
+    claim_name: claim.name,
+    claim_text: claim.text
+  });
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
-    ],
+    messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };
 
@@ -395,14 +395,12 @@ async function runQuickAnalysisForClaim(claim, mapInfo, fileIds) {
 }
 
 async function runStepBQueryGeneration(claimFeatures) {
-  const systemPrompt = await fetch('prompts/stepB_query_prompt.txt').then(response => response.text());
-  const userMessage = `Claim Features (JSON):\n${JSON.stringify(claimFeatures, null, 2)}`;
+  const promptPair = await renderLarcPromptPair('stepBQuery', {
+    claim_features_json: claimFeatures
+  });
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
-    ]
+    messages: promptPair.messages
   };
 
   const response = await sendLLMRequest(payload);
@@ -531,7 +529,6 @@ async function runStepBParallelRag(claimFeatures, queriesByFeature, mapInfo, fil
 }
 
 async function runStepBMergeRag(stepBResponses) {
-  const systemPrompt = await fetch('prompts/stepB_merge_prompt.txt').then(response => response.text());
   const filtered = (stepBResponses || [])
     .filter(entry => entry && entry.ok && entry.result)
     .map(entry => ({
@@ -544,13 +541,12 @@ async function runStepBMergeRag(stepBResponses) {
     return { relevant: {}, debug: { skipped: true } };
   }
 
-  const userMessage = `Step B-2 Responses (JSON):\n${JSON.stringify(filtered, null, 2)}`;
+  const promptPair = await renderLarcPromptPair('stepBMerge', {
+    stepb2_responses_json: filtered
+  });
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
-    ]
+    messages: promptPair.messages
   };
 
   const response = await sendLLMRequest(payload);
@@ -563,19 +559,19 @@ async function runStepBMergeRag(stepBResponses) {
 }
 
 async function runStepBQueryBundle(featuresWithQueries, mapInfo, fileIds, queryIndex) {
-  const basePrompt = await fetch('prompts/stepB_rag_prompt.txt').then(response => response.text());
-  const systemPrompt = basePrompt.replace('{{mapInfo}}', mapInfo);
   const combinedQuery = (featuresWithQueries || [])
     .map(item => item.Query)
     .filter(Boolean)
     .join(' | ');
-  const userMessage = `Query Bundle #${queryIndex}\nCombined Query:\n${combinedQuery}\n\nFeatures (JSON):\n${JSON.stringify(featuresWithQueries, null, 2)}`;
+  const promptPair = await renderLarcPromptPair('stepBRag', {
+    mapInfo,
+    query_index: queryIndex,
+    combined_query: combinedQuery,
+    features_json: featuresWithQueries
+  });
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
-    ],
+    messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };
 
@@ -653,16 +649,17 @@ function rebuildRelevantFromEvidenceDecision(evidenceById, evidenceDecision) {
 }
 
 async function runStepCForClaim(claim, claimFeatures, stepBMergedRelevant) {
-  const basePrompt = await fetch('prompts/stepC_multijudge_prompt.txt').then(response => response.text());
-  const systemPrompt = basePrompt;
   const evidenceBundle = buildStepCEvidenceBundle(stepBMergedRelevant || {});
-  const userMessage = `Target Claim:\n[Claim ID: ${claim.id}] ${claim.name}\n${claim.text}\n\nStep A Claim Features (JSON):\n${JSON.stringify(claimFeatures, null, 2)}\n\nStep B Merged Relevant (JSON):\n${JSON.stringify(evidenceBundle.relevantWithEvidenceIds, null, 2)}`;
+  const promptPair = await renderLarcPromptPair('stepCMultiJudge', {
+    claim_id: claim.id,
+    claim_name: claim.name,
+    claim_text: claim.text,
+    claim_features_json: claimFeatures,
+    stepb_merged_relevant_json: evidenceBundle.relevantWithEvidenceIds
+  });
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
-    ]
+    messages: promptPair.messages
   };
 
   const response = await sendLLMRequest(payload);
@@ -714,15 +711,17 @@ function hasAnyRelevantEntry(relevant) {
 }
 
 async function runStepDForClaim(claim, missingFeatures, mapInfo, fileIds, target) {
-  const basePrompt = await fetch('prompts/stepD_repair_prompt.txt').then(response => response.text());
-  const systemPrompt = basePrompt.replace('{{mapInfo}}', mapInfo);
-  const userMessage = `Target Claim:\n[Claim ID: ${claim.id}] ${claim.name}\n${claim.text}\n\nMissing Features (JSON):\n${JSON.stringify(missingFeatures, null, 2)}\n\nCurrent Relevant (JSON):\n${JSON.stringify(target.Relevant || {}, null, 2)}`;
+  const promptPair = await renderLarcPromptPair('stepDRepair', {
+    mapInfo,
+    claim_id: claim.id,
+    claim_name: claim.name,
+    claim_text: claim.text,
+    missing_features_json: missingFeatures,
+    current_relevant_json: target.Relevant || {}
+  });
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage }
-    ],
+    messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };
 
@@ -736,8 +735,6 @@ async function runStepDForClaim(claim, missingFeatures, mapInfo, fileIds, target
 }
 
 async function runVerificationStage(claimsToVerify, fileIds, citationMap) {
-  const verificationSystemPrompt = await fetch('prompts/verification_prompt.txt').then(response => response.text());
-
   const summaryResults = {};
   claimsToVerify.forEach(claim => {
     const result = analysisResults[claim.id];
@@ -749,14 +746,16 @@ async function runVerificationStage(claimsToVerify, fileIds, citationMap) {
   });
 
   const allClaimsText = claimsToVerify.map(c => `[청구항 ID: ${c.id}] ${c.name}\n${c.text}`).join('\n\n');
-  const verificationUserPrompt = `\n**[전체 청구항]**\n${allClaimsText}\n\n**[인용발명 목록]**\n${citationMap}\n\n**[1차 분석 결과 (JSON)]**\n${JSON.stringify(summaryResults, null, 2)}\n\n**[지시]**\n제공된 정보를 바탕으로, 위에 명시한 '검증 기준'과 '출력 규칙'을 따라 1차 분석 결과를 검증하고 문제가 있는 항목만 JSON으로 출력하세요.\n`;
+
+  const promptPair = await renderLarcPromptPair('verification', {
+    all_claims_text: allClaimsText,
+    citation_map: citationMap,
+    summary_results_json: summaryResults
+  });
 
   const payload = {
     model: 'gpt-oss-120b',
-    messages: [
-      { role: 'system', content: verificationSystemPrompt },
-      { role: 'user', content: verificationUserPrompt }
-    ],
+    messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };
 

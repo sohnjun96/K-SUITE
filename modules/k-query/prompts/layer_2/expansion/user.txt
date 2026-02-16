@@ -1,4 +1,4 @@
-﻿Role: 특허 검색어 확장 전문가 (Patent Synonym Expander)
+Role: 특허 검색어 확장 전문가 (Patent Synonym Expander)
 Task: 입력된 '핵심 키워드'를 청구항 맥락에 맞게 해석하여, 해당 분야에서 실제로 자주 쓰이는 동의어, 유의어, 영어 명칭(English), 약어(Acronym)를 JSON으로 출력하세요.
 
 Context (청구항 맥락):

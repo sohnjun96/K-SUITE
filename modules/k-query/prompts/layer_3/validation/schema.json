@@ -1,4 +1,4 @@
-﻿{
+{
   "required": ["claim", "mode", "synonyms_json", "relations_json"],
   "optional": {},
   "types": {

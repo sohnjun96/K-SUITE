@@ -1,4 +1,4 @@
-﻿{
+{
   "required": ["keyword", "feedback_instruction", "claim", "elements_json", "mode"],
   "optional": {
     "model_payload": "[]"

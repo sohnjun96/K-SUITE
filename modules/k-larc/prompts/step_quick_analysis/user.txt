@@ -1,0 +1,6 @@
+Quick Mode Input (JSON):
+{{quick_input_json}}
+
+Target Claim:
+[Claim ID: {{claim_id}}] {{claim_name}}
+{{claim_text}}

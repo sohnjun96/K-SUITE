@@ -1,0 +1,8 @@
+{
+  "required": ["claim_id", "claim_text"],
+  "optional": {},
+  "types": {
+    "claim_id": "text",
+    "claim_text": "text"
+  }
+}

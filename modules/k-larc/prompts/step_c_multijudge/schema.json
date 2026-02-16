@@ -1,0 +1,11 @@
+{
+  "required": ["claim_id", "claim_name", "claim_text", "claim_features_json", "stepb_merged_relevant_json"],
+  "optional": {},
+  "types": {
+    "claim_id": "text",
+    "claim_name": "text",
+    "claim_text": "text",
+    "claim_features_json": "json",
+    "stepb_merged_relevant_json": "json"
+  }
+}

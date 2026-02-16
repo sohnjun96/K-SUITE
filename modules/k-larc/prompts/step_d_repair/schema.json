@@ -1,0 +1,12 @@
+{
+  "required": ["mapInfo", "claim_id", "claim_name", "claim_text", "missing_features_json", "current_relevant_json"],
+  "optional": {},
+  "types": {
+    "mapInfo": "text",
+    "claim_id": "text",
+    "claim_name": "text",
+    "claim_text": "text",
+    "missing_features_json": "json",
+    "current_relevant_json": "json"
+  }
+}

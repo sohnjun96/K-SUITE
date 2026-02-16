@@ -1,0 +1,2 @@
+[Claim ID: {{claim_id}}]
+{{claim_text}}

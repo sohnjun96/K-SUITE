@@ -1,0 +1,6 @@
+Query Bundle #{{query_index}}
+Combined Query:
+{{combined_query}}
+
+Features (JSON):
+{{features_json}}

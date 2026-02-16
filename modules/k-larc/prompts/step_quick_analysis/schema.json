@@ -1,0 +1,11 @@
+{
+  "required": ["mapInfo", "quick_input_json", "claim_id", "claim_name", "claim_text"],
+  "optional": {},
+  "types": {
+    "mapInfo": "text",
+    "quick_input_json": "json",
+    "claim_id": "text",
+    "claim_name": "text",
+    "claim_text": "text"
+  }
+}

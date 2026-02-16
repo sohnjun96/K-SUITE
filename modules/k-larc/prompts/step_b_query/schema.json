@@ -1,0 +1,7 @@
+{
+  "required": ["claim_features_json"],
+  "optional": {},
+  "types": {
+    "claim_features_json": "json"
+  }
+}

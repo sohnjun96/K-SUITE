@@ -1,0 +1,8 @@
+{
+  "required": ["mapInfo", "user_text"],
+  "optional": {},
+  "types": {
+    "mapInfo": "text",
+    "user_text": "text"
+  }
+}

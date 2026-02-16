@@ -24,15 +24,14 @@ async function sendUserChat() {
   }
 
   // 채팅용 프롬프트
-  const baseSystemPrompt = await fetch('prompts/chat_prompt.txt').then(response => response.text());
-  const systemPrompt = baseSystemPrompt.replace('{{mapInfo}}', mapInfo);
+  const promptPair = await renderLarcPromptPair('chat', {
+    mapInfo,
+    user_text: userText
+  });
 
   const payload = {
     model: "gpt-oss-120b",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userText }
-    ],
+    messages: promptPair.messages,
     files: validFiles.map(id => ({ type: "file", id: id })) // RAG 활성화
   };
 

@@ -1,0 +1,9 @@
+Target Claim:
+[Claim ID: {{claim_id}}] {{claim_name}}
+{{claim_text}}
+
+Step A Claim Features (JSON):
+{{claim_features_json}}
+
+Step B Merged Relevant (JSON):
+{{stepb_merged_relevant_json}}

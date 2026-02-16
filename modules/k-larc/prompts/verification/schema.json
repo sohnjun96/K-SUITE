@@ -1,0 +1,9 @@
+{
+  "required": ["all_claims_text", "citation_map", "summary_results_json"],
+  "optional": {},
+  "types": {
+    "all_claims_text": "text",
+    "citation_map": "text",
+    "summary_results_json": "json"
+  }
+}

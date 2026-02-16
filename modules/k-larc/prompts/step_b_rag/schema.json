@@ -1,0 +1,10 @@
+{
+  "required": ["mapInfo", "query_index", "combined_query", "features_json"],
+  "optional": {},
+  "types": {
+    "mapInfo": "text",
+    "query_index": "text",
+    "combined_query": "text",
+    "features_json": "json"
+  }
+}

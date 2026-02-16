@@ -1,0 +1,7 @@
+{
+  "required": ["stepb2_responses_json"],
+  "optional": {},
+  "types": {
+    "stepb2_responses_json": "json"
+  }
+}

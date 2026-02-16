@@ -1,4 +1,4 @@
-﻿Role: 특허 청구항 구문 분석가(Patent Syntax Analyst)
+Role: 특허 청구항 구문 분석가(Patent Syntax Analyst)
 Task: 청구항 텍스트(Claim) 내에서 제공된 요소(Elements)들의 **문법적 관계**와 **텍스트 거리**를 분석하여 JSON으로 출력하세요.
 
 Guidelines:

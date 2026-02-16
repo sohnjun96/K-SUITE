@@ -69,6 +69,213 @@ function safeJsonParse(raw) {
   }
 }
 
+const LARC_PROMPT_BUNDLES = Object.freeze({
+  chat: {
+    system: 'prompts/chat/system.txt',
+    user: 'prompts/chat/user.txt',
+    schema: 'prompts/chat/schema.json',
+    legacySystem: 'prompts/chat_prompt.txt'
+  },
+  stepAFeatures: {
+    system: 'prompts/step_a_features/system.txt',
+    user: 'prompts/step_a_features/user.txt',
+    schema: 'prompts/step_a_features/schema.json',
+    legacySystem: 'prompts/stepA_features_prompt.txt'
+  },
+  stepQuickAnalysis: {
+    system: 'prompts/step_quick_analysis/system.txt',
+    user: 'prompts/step_quick_analysis/user.txt',
+    schema: 'prompts/step_quick_analysis/schema.json',
+    legacySystem: 'prompts/stepQuick_analysis_prompt.txt'
+  },
+  stepBQuery: {
+    system: 'prompts/step_b_query/system.txt',
+    user: 'prompts/step_b_query/user.txt',
+    schema: 'prompts/step_b_query/schema.json',
+    legacySystem: 'prompts/stepB_query_prompt.txt'
+  },
+  stepBMerge: {
+    system: 'prompts/step_b_merge/system.txt',
+    user: 'prompts/step_b_merge/user.txt',
+    schema: 'prompts/step_b_merge/schema.json',
+    legacySystem: 'prompts/stepB_merge_prompt.txt'
+  },
+  stepBRag: {
+    system: 'prompts/step_b_rag/system.txt',
+    user: 'prompts/step_b_rag/user.txt',
+    schema: 'prompts/step_b_rag/schema.json',
+    legacySystem: 'prompts/stepB_rag_prompt.txt'
+  },
+  stepCMultiJudge: {
+    system: 'prompts/step_c_multijudge/system.txt',
+    user: 'prompts/step_c_multijudge/user.txt',
+    schema: 'prompts/step_c_multijudge/schema.json',
+    legacySystem: 'prompts/stepC_multijudge_prompt.txt'
+  },
+  stepDRepair: {
+    system: 'prompts/step_d_repair/system.txt',
+    user: 'prompts/step_d_repair/user.txt',
+    schema: 'prompts/step_d_repair/schema.json',
+    legacySystem: 'prompts/stepD_repair_prompt.txt'
+  },
+  verification: {
+    system: 'prompts/verification/system.txt',
+    user: 'prompts/verification/user.txt',
+    schema: 'prompts/verification/schema.json',
+    legacySystem: 'prompts/verification_prompt.txt'
+  }
+});
+
+const LARC_PROMPT_PLACEHOLDER_REGEX = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
+const larcPromptTextCache = new Map();
+const larcPromptSchemaCache = new Map();
+const DEFAULT_LARC_SYSTEM_PROMPT = [
+  'You are a patent analysis assistant.',
+  'Follow the user instructions exactly.',
+  'Return JSON only when requested by the user template.'
+].join('\n');
+
+function hasOwn(source, key) {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function extractPromptPlaceholders(template) {
+  const names = new Set();
+  for (const match of String(template || '').matchAll(LARC_PROMPT_PLACEHOLDER_REGEX)) {
+    names.add(match[1]);
+  }
+  return names;
+}
+
+function normalizePromptSchema(rawSchema, systemTemplate, userTemplate) {
+  const schema = isPlainObject(rawSchema) ? rawSchema : {};
+  const required = Array.isArray(schema.required)
+    ? [...new Set(schema.required.filter(key => typeof key === 'string' && key.trim()).map(key => key.trim()))]
+    : [];
+  const optional = isPlainObject(schema.optional) ? { ...schema.optional } : {};
+  const types = isPlainObject(schema.types) ? { ...schema.types } : {};
+
+  const placeholders = new Set([
+    ...extractPromptPlaceholders(systemTemplate),
+    ...extractPromptPlaceholders(userTemplate)
+  ]);
+  placeholders.forEach((name) => {
+    if (!hasOwn(types, name)) {
+      types[name] = 'text';
+    }
+  });
+
+  return { required, optional, types };
+}
+
+function hasPromptValue(value) {
+  return value !== undefined && value !== null;
+}
+
+function formatPromptValue(value, type) {
+  if (!hasPromptValue(value)) return '';
+  const normalizedType = String(type || 'text').trim().toLowerCase();
+
+  if (normalizedType === 'json') {
+    if (typeof value === 'string') return value;
+    return JSON.stringify(value, null, 2);
+  }
+
+  if (normalizedType === 'list') {
+    if (Array.isArray(value)) return value.map(item => String(item ?? '')).join('\n');
+    return String(value);
+  }
+
+  return String(value);
+}
+
+function resolvePromptVariables(schema, variables, promptKey) {
+  const safeVariables = isPlainObject(variables) ? variables : {};
+  const merged = { ...schema.optional, ...safeVariables };
+  const missing = schema.required.filter(name => !hasPromptValue(merged[name]));
+  if (missing.length > 0) {
+    throw new Error(`Missing required prompt variables for '${promptKey}': ${missing.join(', ')}`);
+  }
+  return merged;
+}
+
+function fillPromptTemplateStrict(template, variables, schema, promptKey, role) {
+  const text = String(template || '');
+  const rendered = text.replace(LARC_PROMPT_PLACEHOLDER_REGEX, (_, name) => {
+    if (!hasOwn(variables, name)) {
+      throw new Error(`Unknown placeholder '{{${name}}}' in ${role} prompt for '${promptKey}'`);
+    }
+    return formatPromptValue(variables[name], schema.types[name]);
+  });
+
+  const unresolved = [...rendered.matchAll(LARC_PROMPT_PLACEHOLDER_REGEX)].map(match => match[1]);
+  if (unresolved.length > 0) {
+    throw new Error(
+      `Unresolved placeholders in ${role} prompt for '${promptKey}': ${[...new Set(unresolved)].join(', ')}`
+    );
+  }
+
+  return rendered;
+}
+
+async function loadPromptText(path, { optional = false } = {}) {
+  if (!path) return null;
+  if (larcPromptTextCache.has(path)) return larcPromptTextCache.get(path);
+
+  const response = await fetch(path);
+  if (!response.ok) {
+    if (optional && response.status === 404) return null;
+    throw new Error(`Failed to load prompt text: ${path}`);
+  }
+
+  const text = await response.text();
+  larcPromptTextCache.set(path, text);
+  return text;
+}
+
+async function loadPromptSchema(path) {
+  if (!path) return null;
+  if (larcPromptSchemaCache.has(path)) return larcPromptSchemaCache.get(path);
+
+  const response = await fetch(path);
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`Failed to load prompt schema: ${path}`);
+  }
+
+  const parsed = await response.json();
+  larcPromptSchemaCache.set(path, parsed);
+  return parsed;
+}
+
+async function renderLarcPromptPair(promptKey, variables) {
+  const bundle = LARC_PROMPT_BUNDLES[promptKey];
+  if (!bundle) throw new Error(`Unknown prompt key: ${promptKey}`);
+
+  const systemTemplate = (await loadPromptText(bundle.system, { optional: true }))
+    || (await loadPromptText(bundle.legacySystem, { optional: true }))
+    || DEFAULT_LARC_SYSTEM_PROMPT;
+  const userTemplate = (await loadPromptText(bundle.user, { optional: true })) || '{{user_text}}';
+  const schema = normalizePromptSchema(await loadPromptSchema(bundle.schema), systemTemplate, userTemplate);
+  const resolvedVariables = resolvePromptVariables(schema, variables, promptKey);
+
+  const systemPrompt = fillPromptTemplateStrict(systemTemplate, resolvedVariables, schema, promptKey, 'system');
+  const userPrompt = fillPromptTemplateStrict(userTemplate, resolvedVariables, schema, promptKey, 'user');
+
+  return {
+    system: systemPrompt,
+    user: userPrompt,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]
+  };
+}
+
 async function sendLLMRequest(payload) {
   if (settings.mockMode) {
     return await buildMockLLMResponse(payload);

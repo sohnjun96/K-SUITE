@@ -1,0 +1,2 @@
+Step B-2 Responses (JSON):
+{{stepb2_responses_json}}

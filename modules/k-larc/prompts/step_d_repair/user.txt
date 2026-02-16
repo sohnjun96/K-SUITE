@@ -1,0 +1,9 @@
+Target Claim:
+[Claim ID: {{claim_id}}] {{claim_name}}
+{{claim_text}}
+
+Missing Features (JSON):
+{{missing_features_json}}
+
+Current Relevant (JSON):
+{{current_relevant_json}}

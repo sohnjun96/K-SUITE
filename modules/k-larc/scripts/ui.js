@@ -1,9 +1,9 @@
 function setSortOrder(order) {
   currentSortOrder = order;
-  // ?? ?? ?? ?? ????
+  // 정렬 버튼 활성 상태 업데이트
   document.getElementById('btn-sort-by-doc').classList.toggle('active', order === 'doc_then_feature');
   document.getElementById('btn-sort-by-feature').classList.toggle('active', order === 'feature_then_doc');
-  // ?? ??? ????? ??? ?? ???
+  // 현재 선택된 청구항 결과 즉시 재렌더
   const claimSelect = document.getElementById('result-claim-select');
   if (claimSelect.value) {
     renderResultTable(parseInt(claimSelect.value, 10));
@@ -282,12 +282,12 @@ function buildCitationHeaderSummary() {
 function updateInputPanelHeaders() {
   const claimsTitle = document.getElementById('claims-panel-title');
   if (claimsTitle) {
-    claimsTitle.textContent = `Claims (${claims.length})`;
+    claimsTitle.textContent = `청구항 (${claims.length})`;
   }
 
   const citationsTitle = document.getElementById('citations-panel-title');
   if (citationsTitle) {
-    citationsTitle.textContent = `References (${citations.length})`;
+    citationsTitle.textContent = `인용발명 (${citations.length})`;
   }
 
   const claimMeta = document.getElementById('claims-panel-meta');
@@ -686,7 +686,7 @@ function updateDebugClaimSelect() {
   if (claimIds.length === 0) {
     const option = document.createElement('option');
     option.value = '';
-    option.textContent = '(??⑥щ턄????怨몃쾳)';
+    option.textContent = '(디버그 데이터 없음)';
     claimSelect.appendChild(option);
     debugState.claimId = null;
     updateDebugLastUpdatedText(null);
@@ -698,7 +698,7 @@ function updateDebugClaimSelect() {
   claimIds.forEach(id => {
     const option = document.createElement('option');
     option.value = id;
-    option.textContent = claimMap.get(String(id))?.name || `嶺????${id}`;
+    option.textContent = claimMap.get(String(id))?.name || `청구항${id}`;
     claimSelect.appendChild(option);
   });
 
@@ -778,7 +778,7 @@ function renderDebugContent() {
       payload = null;
   }
 
-  renderDebugPayload(payload, { emptyMessage: '????????⑥щ턄??? ??怨룸????덈펲.' });
+  renderDebugPayload(payload, { emptyMessage: '선택한 탭의 디버그 데이터가 없습니다.' });
 }
 
 function renderStepBView(result, claimId) {
@@ -793,10 +793,10 @@ function renderStepBView(result, claimId) {
   const allEntries = buildStepBEntries(result?.debug?.stepB);
   if (allEntries.length === 0) {
     hideDebugDetailHeader();
-    renderDebugEmptyState('B ??節띉???⑥щ턄??? ??怨룸????덈펲.');
+    renderDebugEmptyState('B 단계의 디버그 데이터가 없습니다.');
     const empty = document.createElement('div');
     empty.className = 'debug-empty-state';
-    empty.textContent = '?臾믩닑???뺢퀡?꾥キ????怨룸????덈펲.';
+    empty.textContent = '분석된 쿼리 항목이 없습니다.';
     queryList.appendChild(empty);
     return;
   }
@@ -804,10 +804,10 @@ function renderStepBView(result, claimId) {
   const filteredEntries = allEntries.filter(entry => isStepBEntryMatchedBySearch(entry, debugUiState.searchTerm));
   if (filteredEntries.length === 0) {
     hideDebugDetailHeader();
-    renderDebugPayload(null, { emptyMessage: '?熬곣뫗???熬곥굤?????源딅뭵??濡ル츎 B ??節띉????????怨룸????덈펲.' });
+    renderDebugPayload(null, { emptyMessage: '검색 조건에 맞는 B 단계 항목이 없습니다.' });
     const noMatch = document.createElement('div');
     noMatch.className = 'debug-empty-state';
-    noMatch.textContent = '?熬곣뫗???熬곥굤?????源딅뭵??濡ル츎 B ??節띉????????怨룸????덈펲.';
+    noMatch.textContent = '검색 조건에 맞는 B 단계 항목이 없습니다.';
     queryList.appendChild(noMatch);
     return;
   }
@@ -840,7 +840,7 @@ function renderStepBView(result, claimId) {
 
     const meta = document.createElement('div');
     meta.className = 'debug-query-row-meta';
-    meta.textContent = entry.summary || '(?臾믩닑????怨몃쾳)';
+    meta.textContent = entry.summary || '(요약 정보 없음)';
     row.appendChild(meta);
 
     row.addEventListener('click', () => {
@@ -853,7 +853,7 @@ function renderStepBView(result, claimId) {
 
   const selectedEntry = filteredEntries.find(entry => entry.key === selectedKey) || filteredEntries[0];
   showDebugDetailHeader(selectedEntry.label, selectedEntry.summary || '-');
-  renderDebugPayload(selectedEntry.payload, { emptyMessage: '??ルㅎ臾??B ??節띉??????payload?띠럾? ??怨룸????덈펲.' });
+  renderDebugPayload(selectedEntry.payload, { emptyMessage: '선택된 B 단계 항목에 payload가 없습니다.' });
 }
 
 function buildStepBEntries(stepB) {
@@ -884,14 +884,14 @@ function buildStepBEntries(stepB) {
       entries.push({
         key: `bundle-${queryIndex}`,
         kind: 'bundle',
-        label: `?뺢퀡?꾥キ?${queryIndex}`,
-        summary: summary || '(?臾믩닑????怨몃쾳)',
+        label: `쿼리세트${queryIndex}`,
+        summary: summary || '(요약 정보 없음)',
         ok: !!entry?.ok,
         payload: entry?.ok
           ? (entry.result || null)
           : {
             queryIndex,
-            error: entry?.error || '???????⑸츎 ???댁쾼',
+            error: entry?.error || '요청 처리 중 오류',
             queries: bundle
           }
       });
@@ -912,14 +912,14 @@ function buildStepBEntries(stepB) {
         key: `feature-${featureId}-${idx + 1}`,
         kind: 'feature',
         label: `${featureId} / Query ${idx + 1}`,
-        summary: queryText || '(?臾믩닑????怨몃쾳)',
+        summary: queryText || '(요약 정보 없음)',
         ok: !!entry?.ok,
         payload: entry?.ok
           ? (entry.result || null)
           : {
             featureId,
             queryIndex: idx + 1,
-            error: entry?.error || '???????⑸츎 ???댁쾼',
+            error: entry?.error || '요청 처리 중 오류',
             query: queryText
           }
       });
@@ -978,7 +978,7 @@ function updateDebugTabBadges(result) {
     badge.className = `debug-tab-badge ${metrics.badgeClass}`;
     badge.textContent = metrics.badgeText;
     tab.classList.toggle('has-error', metrics.errorCount > 0);
-    tab.title = `${metrics.title} / ???낆몥??袁⑤콦: ${updatedText}`;
+    tab.title = `${metrics.title} / 최종 업데이트: ${updatedText}`;
   });
 }
 
@@ -989,7 +989,7 @@ function getDebugTabMetrics(tabId, result) {
       errorCount: 0,
       badgeClass: 'none',
       badgeText: 'NONE',
-      title: '??⑥щ턄????怨몃쾳'
+      title: '디버그 데이터 없음'
     };
   }
 
@@ -1047,8 +1047,8 @@ function getDebugTabMetrics(tabId, result) {
   }
 
   const title = errorCount > 0
-    ? `??⑥щ턄?? ${hasData ? '???깅쾳' : '??怨몃쾳'} / ???댁쾼: ${errorCount}`
-    : `??⑥щ턄?? ${hasData ? '???깅쾳' : '??怨몃쾳'}`;
+    ? `디버그 데이터 ${hasData ? '존재' : '없음'} / 오류 수: ${errorCount}`
+    : `디버그 데이터 ${hasData ? '존재' : '없음'}`;
 
   return {
     hasData,
@@ -1285,7 +1285,7 @@ function renderDebugPayload(payload, options = {}) {
   content.innerHTML = '';
 
   if (payload === null || payload === undefined) {
-    renderDebugEmptyState(options.emptyMessage || '??븐뼚?붷윜?payload?띠럾? ??怨룸????덈펲.');
+    renderDebugEmptyState(options.emptyMessage || '표시할 payload가 없습니다.');
     return;
   }
 
@@ -1332,8 +1332,8 @@ function renderDebugPayload(payload, options = {}) {
     const noMatch = document.createElement('div');
     noMatch.className = 'debug-tree-no-match';
     noMatch.textContent = searchTerm
-      ? '?熬곣뫗???熬곥굤?????源딅뭵??濡ル츎 key/path/value?띠럾? ??怨룸????덈펲.'
-      : (options.emptyMessage || '??븐뼚?붷윜?payload?띠럾? ??怨룸????덈펲.');
+      ? '검색 조건에 일치하는 key/path/value가 없습니다.'
+      : (options.emptyMessage || '표시할 payload가 없습니다.');
     content.appendChild(noMatch);
     return;
   }

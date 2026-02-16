@@ -4,18 +4,38 @@ K-SUITE is a Chrome MV3 extension suite for patent workflow support.
 It provides a single launcher and shared settings for three modules:
 `K-LARC`, `K-Query`, and `K-SCAN`.
 
+## Recent Updates
+
+- Unified prompt-file loading strategy (system/user prompts from prompt folders)
+- Encoding guard and model-name hardcoding removal in runtime paths
+- K-LARC debug UX improvements:
+  - step-by-step timing in debug flow
+  - richer mock data and analysis summary table enhancements
+  - position modal now shows both summary and source text
+- K-Query improvements:
+  - mock mode added
+  - core-synonym toggle support in synonym editor
+  - side panel launch available on most tabs (except extension settings pages)
+- K-SCAN stability and policy updates:
+  - stronger START/STOP timeout/error handling
+  - clearer guidance when launched from unsupported contexts
+
 ## Modules
 
 - `K-LARC`: citation/reference analysis dashboard
   - Quick and Deep analysis modes
   - Step-level debug tabs (A/B/C/D/Quick/Verification/Final)
+  - Step elapsed-time display in debug mode
+  - Claim-element summary and comparison views
   - Analysis JSON export
 - `K-Query`: claim-to-boolean query generator (side panel)
   - 3-layer pipeline (analysis -> expansion -> assembly/validation)
   - Per-layer rerun and progress/developer logs
+  - Mock mode and synonym controls
 - `K-SCAN`: capture-driven similarity check tool
   - Captures `bpService.do` requests via `chrome.debugger`
   - Uses editable prompt template in `modules/k-scan/prompts/default.txt`
+  - Timeout-guarded background messaging for start/stop capture
 
 ## Repository Layout
 
@@ -41,6 +61,18 @@ It provides a single launcher and shared settings for three modules:
    - `OpenWebUI Base URL` (default: `http://10.133.111.32:8080`)
    - `Shared API Key / Token`
 6. Launch a module from the K-SUITE home popup.
+
+## Tab Launch Policy
+
+- `K-Query`
+  - Can open in side panel from general tabs.
+  - Blocked on browser extension settings tabs
+    (`chrome://extensions`, `edge://extensions`).
+- `K-SCAN`
+  - Must run on capturable web tabs (`http/https`) for capture.
+  - When attempted from K-LARC dashboard context, launcher warns to open from a KOMPASS tab.
+- `K-LARC`
+  - Works as standalone dashboard page with integrated analysis/debug panels.
 
 ## Runtime Requirements
 
@@ -69,7 +101,7 @@ node tests/smoke/run-smoke.mjs
 This verifies:
 - shared module registry wiring
 - launcher generation and routing
-- sidepanel fallback-tab policy
+- module-specific sidepanel/tab policy
 - shared API key gate path
 - shared script loading in app pages
 
@@ -80,6 +112,11 @@ This verifies:
 - API call error:
   - Check `Base URL` and `Shared API Key` in K-SUITE settings.
 - Side panel does not open:
-  - Use an active `http/https` tab, not browser internal pages.
+  - `K-Query`: avoid extension settings pages (`chrome://extensions`, `edge://extensions`).
+  - `K-SCAN`: use an active KOMPASS tab and ensure target tab is `http/https`.
+- `K-SCAN` shows `실패: 백그라운드 응답 시간 초과`:
+  - Reload the extension and retry capture.
+  - Confirm the active tab is capturable and not a browser internal page.
+  - Check service worker/background console for runtime errors.
 - Garbled text in local editor/terminal:
   - Force file encoding to `UTF-8`.

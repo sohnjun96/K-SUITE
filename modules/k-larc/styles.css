@@ -1,7 +1,13 @@
 :root {
   /* Color Palette */
-  --primary: #4f46e5;       /* Brand Color (Indigo) */
-  --primary-hover: #4338ca;
+  --primary: #1766ff;       /* C91 M60 Y0 K0 */
+  --primary-hover: #002c9e; /* C100 M72 Y0 K38 */
+  --larc-title-bg: #002c9e;     /* C100 M72 Y0 K38 */
+  --larc-title-hi: #1766ff;     /* C91 M60 Y0 K0 */
+  --larc-neutral-soft: #95abab; /* C13 M0 Y0 K33 */
+  --larc-point-line: #ffb30f;   /* C0 M30 Y94 K0 */
+  --larc-title-text: #f5f8ff;
+  --larc-title-meta: #d8e4ff;
   --bg-color: #f3f4f6;      /* App Background */
   --panel-bg: #ffffff;      /* Card Background */
   
@@ -141,7 +147,7 @@ body.analysis-active .comparison-grid {
 }
 
 @media (max-width: 900px) {
-  .comparison-grid { grid-template-columns: 1fr; } /* 筌뤴뫀而??????*/
+  .comparison-grid { grid-template-columns: 1fr; } /* Single-column layout on narrow screens */
 }
 
 /* --- Panel Styles --- */
@@ -159,7 +165,7 @@ body.analysis-active .comparison-grid {
   display: none;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-color);
-  background: #f8fafc;
+  background: linear-gradient(180deg, rgba(149, 171, 171, 0.18) 0%, #f8fafc 100%);
 }
 .panel-summary .summary-title {
   font-size: 0.85rem;
@@ -239,14 +245,32 @@ body.analysis-active #citations-panel:not(.panel-collapsed) .panel-body-list { m
 
 .panel-header {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.26);
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  background-color: #fcfcfc;
+  position: relative;
+  background: var(--larc-title-bg);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+  color: var(--larc-title-text);
 }
-.panel-header h2 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-main); }
+.panel-header::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--larc-point-line) 12%,
+    var(--larc-point-line) 88%,
+    transparent 100%
+  );
+}
+.panel-header h2 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--larc-title-text); }
 
 .panel-title-wrap {
   min-width: 0;
@@ -260,7 +284,7 @@ body.analysis-active #citations-panel:not(.panel-collapsed) .panel-body-list { m
   display: none;
   min-width: 0;
   font-size: 0.78rem;
-  color: var(--text-sub);
+  color: var(--larc-title-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -273,6 +297,40 @@ body.analysis-active #citations-panel:not(.panel-collapsed) .panel-body-list { m
   flex-shrink: 0;
 }
 
+.panel-header .btn-text {
+  color: var(--larc-title-text);
+}
+.panel-header .btn-text:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.panel-header .btn-icon {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.42);
+  color: #eaf1ff;
+}
+.panel-header .btn-icon:hover {
+  border-color: var(--larc-point-line);
+  color: #ffffff;
+  background: rgba(255, 179, 15, 0.18);
+}
+
+.panel-header select {
+  border-color: rgba(216, 228, 255, 0.45);
+  background: rgba(245, 248, 255, 0.12);
+  color: var(--larc-title-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.panel-header select:focus {
+  outline: none;
+  border-color: var(--larc-point-line);
+  box-shadow: 0 0 0 2px rgba(255, 179, 15, 0.22);
+}
+.panel-header select option {
+  color: #0f172a;
+  background: #ffffff;
+}
+
 .claim-view-header {
   display: none;
   align-items: center;
@@ -281,11 +339,12 @@ body.analysis-active #citations-panel:not(.panel-collapsed) .panel-body-list { m
 .claim-view-header select {
   width: 100%;
   min-width: 140px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(216, 228, 255, 0.45);
   border-radius: 6px;
   padding: 7px 10px;
   font-size: 0.84rem;
-  background: #ffffff;
+  background: rgba(245, 248, 255, 0.12);
+  color: var(--larc-title-text);
 }
 
 .panel-collapse-btn {
@@ -614,10 +673,10 @@ table.result-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; 
 table.result-table th { background: #f9fafb; text-align: left; padding: 14px 20px; font-weight: 600; color: var(--text-sub); border-bottom: 2px solid var(--border-color); white-space: nowrap; }
 table.result-table td { padding: 16px 20px; border-bottom: 1px solid var(--border-color); vertical-align: top; line-height: 1.6; color: var(--text-main); }
 table.result-table tr {  transition: filter 0.2s;}
-table.result-table tr:hover {  /* 獄쏄퀗瑗??깆뱽 獄쏅떽???野??袁⑤빍?? ?袁⑹삺 ??깃맒?癒?퐣 ??꾩퍢 ??紐쇔칰?揶쏅벡?? 筌ｌ꼶??*/
+table.result-table tr:hover {  /* Keep hover subtle so focus stays on comparison text */
   filter: brightness(0.95); 
   cursor: default;}
-table.result-table td:first-child { width: 35%; font-weight: 500; color: #374151; } /* 筌????*/
+table.result-table td:first-child { width: 35%; font-weight: 500; color: #374151; } /* Claim element */
 table.result-table td:nth-child(2) { width: 10%; font-weight: 700; color: var(--primary); } /* Doc Name */
 
 .opinion-notice-body {
@@ -733,7 +792,7 @@ table.result-table td:nth-child(2) { width: 10%; font-weight: 700; color: var(--
 .modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background-color: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px); /* ?됰뗀????ｋ궢 */
+  backdrop-filter: blur(4px); /* Modal backdrop blur */
   display: flex; justify-content: center; align-items: center;
   z-index: 1000; animation: fadeIn 0.2s ease-out;
 }
@@ -766,21 +825,22 @@ table.result-table td:nth-child(2) { width: 10%; font-weight: 700; color: var(--
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes button-spin { to { transform: rotate(360deg); } }
 
-/* styles.css ?곕떽? 獄???륁젟 */
+/* Additional result panel layout rules */
 
-/* 野껉퀗???뚢뫂?껅에?살뺍 */
+/* Result controls alignment */
 .result-controls {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.result-controls label { font-weight: 600; font-size: 0.9rem; color: var(--text-main); }
+.result-controls label { font-weight: 600; font-size: 0.9rem; color: var(--larc-title-text); }
 .result-controls select {
   padding: 8px 12px;
   border-radius: 6px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(216, 228, 255, 0.45);
   font-size: 0.9rem;
-  background-color: white;
+  background: rgba(245, 248, 255, 0.12);
+  color: var(--larc-title-text);
   min-width: 200px;
 }
 
@@ -797,14 +857,14 @@ table.result-table td:nth-child(2) { width: 10%; font-weight: 700; color: var(--
   border: 1px solid transparent;
 }
 
-/* Explicit: ?類ㅻ뼄??(??몿而?揶쏅벡?? */
+/* Explicit match */
 .match-explicit {
   background-color: #dcfce7;
   color: #166534;
   border-color: #86efac;
 }
 
-/* Equivalent: 域뱀쥓踰??醫롪텢 (雅뚯눛??雅뚯눘?? */
+/* Equivalent match */
 .match-equivalent {
   background-color: #fff7ed;
   color: #9a3412;
@@ -817,19 +877,19 @@ table.result-table td:nth-child(2) { width: 10%; font-weight: 700; color: var(--
   border-color: #d1d5db;
 }
 
-/* ???뵠???醫뤿뼢?귐뗫뼒 */
+/* Summary highlight text */
 .font-bold { font-weight: 600; color: var(--primary); }
 .text-sm { font-size: 0.85rem; }
 .text-sub { color: var(--text-sub); }
 
-/* ???뵠????삳쐭 ??덊돩 ?⑥쥙??(HTML colgroup ???? */
+/* Table column sizing (paired with HTML colgroup) */
 table.result-table { table-layout: fixed; }
 table.result-table td { word-wrap: break-word; }
 
 
 /* styles.css ?곕떽? */
 
-/* --- ?怨룸뼊 ?닌딄쉐?遺용꺖 ?遺용튋 獄쏅벡??--- */
+/* --- Sticky claim summary styles --- */
 .claim-summary {
   background: white;
   border: 1px solid var(--border-color);
@@ -908,10 +968,10 @@ table.result-table td { word-wrap: break-word; }
     min-width: 860px;
   }
 }
-/* --- Q&A 筌?쑵???諭??--- */
+/* --- Q&A panel styles --- */
 .chat-panel {
   margin-top: 24px;
-  /* border-top: 4px solid var(--primary); 揶쏅벡??*/
+  /* border-top: 4px solid var(--primary); */
 }
 
 .chat-input-area {
@@ -940,33 +1000,33 @@ table.result-table td { word-wrap: break-word; }
 .chat-response {
   margin-top: 16px;
   padding: 16px;
-  background-color: #f8fafc; /* 筌띲끉???怨좊립 ???삂/???퉳 */
+  background-color: #f8fafc; /* Default debug block background */
   border-radius: 8px;
   border: 1px solid var(--border-color);
 }
 
 #chat-content {
   margin-top: 8px;
-  white-space: pre-wrap; /* 餓κ쑬而?퐛??醫? */
+  white-space: pre-wrap; /* Preserve wrapped line breaks */
   line-height: 1.6;
   font-size: 0.95rem;
   color: #334155;
 }
 
 
-/* --- [UI 揶쏆뮇苑??遺욧퍕] --- */
+/* --- UI readability adjustments --- */
 
-/* 1. ?닌딄쉐???怨룸뼊 ?⑥쥙??*/
+/* 1) Sticky claim summary */
 #claim-summary-box.sticky-header {
   /*position: -webkit-sticky;  for Safari */
   /*position: sticky;*/
   top: 0;
   z-index: 10;
-  /* ??쎄쾿嚥????袁⑥삋 ??곸뒠??野껊??귨쭪? ??낅즲嚥?獄쏄퀗瑗???類ㅻ뼄??筌왖??*/
+  /* Light blur and translucency for readability while scrolling */
   background-color: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(4px);
-  padding-bottom: 16px; /* ?袁⑥삋 ???뵠?됰떽??揶쏄쑨爰?*/
-  margin-bottom: 0; /* 疫꿸퀣??margin ??볤탢 */
+  padding-bottom: 16px; /* Space below sticky header */
+  margin-bottom: 0; /* Remove extra margin */
 }
 
 #result-area {
@@ -975,20 +1035,21 @@ table.result-table td { word-wrap: break-word; }
   overflow-y: auto; /* Enable vertical scrolling */
 }
 
-/* 2. ?類ｌ졊 甕곌쑵???????*/
+/* 2) Sort and control spacing */
 .result-controls {
-  gap: 16px; /* ?遺용꺖揶?揶쏄쑨爰???롡봺疫?*/
+  gap: 16px; /* Wrap spacing between control groups */
 }
 .result-controls .divider {
   width: 1px;
   height: 20px;
-  background-color: var(--border-color);
+  background-color: rgba(216, 228, 255, 0.35);
 }
 .sort-controls {
   display: flex;
-  background-color: #f3f4f6;
-  border-radius: 6px;
-  padding: 4px;
+  background: rgba(245, 248, 255, 0.1);
+  border: 1px solid rgba(216, 228, 255, 0.32);
+  border-radius: 8px;
+  padding: 3px;
 }
 .btn-sort {
   background-color: transparent;
@@ -996,25 +1057,26 @@ table.result-table td { word-wrap: break-word; }
   padding: 6px 12px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-sub);
+  color: var(--larc-title-meta);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: all 0.2s;
 }
 .btn-sort.active {
-  background-color: white;
-  color: var(--text-main);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background-color: #f5f8ff;
+  color: #002c9e;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.24);
 }
 .btn-sort:not(.active):hover {
-  color: var(--text-main);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
 }
 
-/* 3. ?닌딄쉐?遺용꺖 筌ｋ똾寃뺧쭕?딄쾿 ?????*/
-/* --- [UI 癰귣벀????곕떽?] --- */
+/* 3) Input controls and action group */
+/* --- Input controls UI --- */
 .input-controls {
   display: flex;
-  flex-wrap: wrap; /* 甕곌쑵????롡뵝 獄쎻뫗? */
+  flex-wrap: wrap; /* Allow wrapping on narrow widths */
   align-items: center;
   gap: 12px;
 }
@@ -1031,7 +1093,7 @@ table.result-table td { word-wrap: break-word; }
   white-space: nowrap;
 }
 
-/* --- [?곕떽?] ???筌?疫꿸퀡??UI --- */
+/* --- Verification button UI --- */
 .verification-cell {
   text-align: center;
   position: relative;
@@ -1081,20 +1143,20 @@ table.result-table td { word-wrap: break-word; }
   cursor: pointer;
 }
 
-/* 野꺜筌?野껉퀗??筌뤴뫀??*/
+/* Verification modal sizing */
 #verification-modal .modal-content {
-  max-width: 450px; /* ??밸씜 ??由곁몴?餓κ쑴??*/
-  height: auto; /* ??곸뒠???怨뺤뵬 ?誘れ뵠 ?癒?짗 鈺곌퀣??*/
-  max-height: 80%; /* 筌ㅼ뮆? ?誘れ뵠 ??쇱젟 */
+  max-width: 450px; /* Slightly wider modal */
+  height: auto; /* Auto height based on content */
+  max-height: 80%; /* Cap modal height */
 }
 
 #verification-modal-content {
-  font-size: 1.1rem; /* ?怨좊뱜 ??由???? */
+  font-size: 1.1rem; /* Readable body font size */
   line-height: 1.8;
 }
 
 
-/* --- [?곕떽?] 筌??????已???낆젾 ?袁⑤굡 --- */
+/* --- Position token click style --- */
 .position-token {
   display: inline-flex;
   align-items: center;
@@ -1203,7 +1265,7 @@ body.analysis-active .claim-card textarea[readonly] {
   overflow-y: auto;
 }
 
-/* --- [?곕떽?] 筌욊낯???곕떽? 甕곌쑵??獄?筌뤴뫀??--- */
+/* --- Direct add / control buttons --- */
 .btn-secondary-sm {
   background: white;
   color: var(--text-sub);
@@ -1219,7 +1281,7 @@ body.analysis-active .claim-card textarea[readonly] {
   border-color: #d1d5db;
   color: var(--text-main);
 }
-.btn-secondary { /* 筌뤴뫀???紐낃숲??*/
+.btn-secondary { /* Secondary button */
   background: #f3f4f6;
   color: var(--text-main);
   border: 1px solid #f3f4f6;
@@ -1231,7 +1293,7 @@ body.analysis-active .claim-card textarea[readonly] {
   transition: background 0.2s;
 }
 .btn-secondary:hover { background-color: #e5e7eb; }
-.btn-primary { /* 筌뤴뫀???紐낃숲??*/
+.btn-primary { /* Primary button */
   background: var(--primary);
   color: white;
   border: 1px solid var(--primary);
@@ -1412,14 +1474,19 @@ body.analysis-active .claim-card textarea[readonly] {
 #debug-claim-select {
   padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(216, 228, 255, 0.45);
   font-size: 0.85rem;
-  background-color: white;
+  background: rgba(245, 248, 255, 0.12);
+  color: var(--larc-title-text);
   min-width: 180px;
+}
+.debug-controls label,
+.result-controls label {
+  color: var(--larc-title-text);
 }
 .debug-last-updated {
   font-size: 0.76rem;
-  color: #64748b;
+  color: var(--larc-title-meta);
   margin-left: 4px;
 }
 .debug-claim-summary {

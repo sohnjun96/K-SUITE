@@ -215,7 +215,7 @@ function ensureMockDemoAnalysisResults() {
 }
 
 async function loadSettings() {
-  // savedCitations ??異붽?
+  // savedCitations 포함
   const data = await chrome.storage.local.get([
     'webuiBaseUrl',
     'ksuiteSharedApiKey',
@@ -250,25 +250,25 @@ async function loadSettings() {
     apiKeyInput.disabled = settings.mockMode;
   }
 
-  // A. 泥?뎄??遺덈윭?ㅺ린
+  // A. 청구항 불러오기
   if (data.savedClaims && Array.isArray(data.savedClaims) && data.savedClaims.length > 0) {
-    // [?섏젙] 湲곗〈 ?곗씠???명솚?깆쓣 ?꾪빐 name ?띿꽦 異붽?
+    // [수정] 기존 데이터 호환성을 위해 name 속성 추가
     claims = data.savedClaims.map((claim, index) => ({
       ...claim,
-      name: claim.name || `泥?뎄??${index + 1}`
+      name: claim.name || `청구항${index + 1}`
     }));
   } else {
-    claims = [{ id: Date.now(), name: '泥?뎄??1', text: '' }];
+    claims = [{ id: Date.now(), name: '청구항 1', text: '' }];
   }
   renderClaims();
 
-  // B. [異붽??? ?몄슜諛쒕챸 遺덈윭?ㅺ린 諛??곹깭 蹂듦뎄
+  // B. 인용발명 불러오기 및 상태 복구
   if (data.savedCitations && Array.isArray(data.savedCitations)) {
     citations = data.savedCitations;
     renderCitations();
 
-    // *以묒슂*: ??쒕낫?쒕? ?レ븯????'processing' ?곹깭?????ぉ?ㅼ?
-    // ?ㅼ떆 ?댁뿀?????대쭅(?곹깭?뺤씤)???ш컻?댁빞 ??
+    // *중요*: 대시보드를 닫았을 때 'processing' 상태였던 항목들은
+    // 다시 열었을 때도 폴링(상태확인)을 재개해야 함
     citations.forEach(c => {
       if (c.status === 'processing' || c.status === 'uploading') {
         pollStatus(c);
@@ -335,7 +335,7 @@ function saveAnalysisResultsToStorage() {
 
 function addClaimInput() {
   const id = Date.now();
-  const newName = `泥?뎄??${claims.length + 1}`;
+  const newName = `청구항${claims.length + 1}`;
   claims.push({ id, name: newName, text: '' });
   renderClaims();
   saveClaimsToStorage();
@@ -380,14 +380,14 @@ function _renderClaimsLegacy() {
     div.innerHTML = `
       <div class="claim-header">
         <input type="text" class="claim-name-input" value="${claim.name}" data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>
-        <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">????젣</button>
+        <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">삭제</button>
       </div>
-      <textarea rows="1" placeholder="泥?뎄???댁슜???낅젰?섏꽭??.." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
+      <textarea rows="1" placeholder="청구항 내용을 입력해 주세요.." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
     `;
     container.appendChild(div);
 
     const textarea = div.querySelector('textarea');
-    // 珥덇린 濡쒕뱶 ???믪씠 議곗젅
+    // 초기 로드 시 높이 조절
     autoResizeTextarea(textarea);
   });
 
@@ -398,7 +398,7 @@ function _renderClaimsLegacy() {
 
     container.querySelectorAll('textarea').forEach(el => {
       el.addEventListener('input', (e) => {
-        // ?믪씠 ?먮룞 議곗젅 諛??띿뒪???낅뜲?댄듃
+        // 높이 자동 조절 및 텍스트 업데이트
         autoResizeTextarea(e.target);
         updateClaimText(parseInt(e.target.dataset.id), e.target.value);
       });
@@ -420,7 +420,7 @@ function buildClaimCardElement(claim, readOnly) {
     const content = document.createElement('div');
     content.className = 'claim-readonly-content';
     const text = (claim.text || '').trim();
-    content.textContent = text || '(泥?뎄???댁슜???놁뒿?덈떎.)';
+    content.textContent = text || '(청구항 내용이 없습니다.)';
     return content;
   }
 
@@ -429,9 +429,9 @@ function buildClaimCardElement(claim, readOnly) {
   div.innerHTML = `
     <div class="claim-header">
       <input type="text" class="claim-name-input" value="${claim.name}" data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>
-      <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">??젣</button>
+      <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">삭제</button>
     </div>
-    <textarea rows="1" placeholder="泥?뎄???댁슜???낅젰?섏꽭??.." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
+    <textarea rows="1" placeholder="청구항 내용을 입력해 주세요.." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
   `;
 
   const textarea = div.querySelector('textarea');
@@ -736,7 +736,7 @@ async function addCitationFromTab() {
   });
 }
 function pollStatus(citation) {
-  // ?대? ?꾨즺?섏뿀嫄곕굹 ?ㅽ뙣???곹깭硫??ъ떎??諛⑹?
+  // 이미 완료됐거나 실패한 상태면 재시도하지 않음
   if (citation.status === 'completed' || citation.status === 'failed') return;
 
   if (settings.mockMode) {
@@ -754,14 +754,14 @@ function pollStatus(citation) {
   }
 
   const interval = setInterval(() => {
-    // 1. ?ъ슜?먭? 紐⑸줉?먯꽌 ??젣?덉쑝硫??대쭅 以묐떒
+    // 1. 사용자가 목록에서 삭제했으면 폴링 중단
     const currentCitation = citations.find(c => c.id === citation.id);
     if (!currentCitation) {
       clearInterval(interval);
       return;
     }
 
-    // 2. ?곹깭 ?뺤씤 ?붿껌
+    // 2. 상태 확인 요청
     chrome.runtime.sendMessage({ 
       type: 'CHECK_STATUS', 
       fileId: citation.fileId,
@@ -769,43 +769,45 @@ function pollStatus(citation) {
       apiKey: settings.key
     }, (res) => {
       
-      // 3. ?묐떟 泥섎━
+      // 3. 응답 처리
       if (res.ok) {
-        console.log(`[Polling] ${citation.name}:`, res.status); // 肄섏넄?먯꽌 ?곹깭 ?뺤씤 媛??
+        console.log(`[Polling] ${citation.name}:`, res.status); // 콘솔에서 상태 확인 가능
         if (res.status === 'completed') {
-          // ?깃났 泥섎━
+          // 성공 처리
           currentCitation.status = 'completed';
           saveCitationsToStorage();
           renderCitations();
-          clearInterval(interval); // ??以묒슂: 猷⑦봽 醫낅즺
+          clearInterval(interval); // 중요: 루프 종료
         } 
         else if (res.status === 'failed') {
-          // ?ㅽ뙣 泥섎━
+          // 실패 처리
           currentCitation.status = 'failed';
           saveCitationsToStorage();
           renderCitations();
-          clearInterval(interval); // ??以묒슂: 猷⑦봽 醫낅즺
+          clearInterval(interval); // 중요: 루프 종료
         }
-        // processing ??寃쎌슦 ?꾨Т寃껊룄 ?섏? ?딄퀬 ?ㅼ쓬 ???湲?      } else {
-        // ?ㅽ듃?뚰겕 ?먮윭 ?깆씠 諛쒖깮?덉쓣 ??        console.warn('Polling error response:', res.error);
+        // processing 인 경우 아무것도 하지 않고 다음 틱 대기
+      } else {
+        // 네트워크 에러 등이 발생했을 때
+        console.warn('Polling error response:', res.error);
         
-        // (?좏깮?ы빆) ?곗냽 ?먮윭 ??以묐떒 濡쒖쭅???ｌ쓣 ?섎룄 ?덉쑝?? 
-        // ?쇱떆???ㅽ듃?뚰겕 ?ㅻ쪟?????덉쑝誘濡?蹂댄넻? ?좎??⑸땲??
+        // (선택사항) 연속 에러 시 중단 로직을 넣을 수도 있으나,
+        // 일시적 네트워크 오류일 수 있으므로 보통은 유지합니다.
       }
     });
-  }, 3000); // 3珥?媛꾧꺽
+  }, 3000); // 3초 간격
 }
 
 function removeCitation(id) {
-  // 1. ??젣 ???李얘린
+  // 1. 삭제 대상 찾기
   const targetIndex = citations.findIndex(c => c.id === id);
   if (targetIndex === -1) return;
   
   const target = citations[targetIndex];
 
-  if (!confirm(`'${target.name}'??瑜? ??젣?섏떆寃좎뒿?덇퉴?\n(?쒕쾭???낅줈?쒕맂 ?뚯씪???④퍡 ??젣?⑸땲??`)) return;
+  if (!confirm(`'${target.name}'을(를) 삭제하시겠습니까?\n(서버에 업로드된 파일도 함께 삭제됩니다)`)) return;
   
-  // 2. [異붽??? ?쒕쾭 ?뚯씪 ??젣 ?붿껌 (fileId媛 ?덈뒗 寃쎌슦)
+  // 2. 서버 파일 삭제 요청 (fileId가 있는 경우)
   if (target.fileId && settings.key) {
     console.log(`Deleting file from server: ${target.fileId}`);
     
@@ -819,17 +821,17 @@ function removeCitation(id) {
         console.log(`File deleted successfully: ${target.fileId}`);
       } else {
         console.warn(`Failed to delete file on server: ${response?.error}`);
-        // ?쒕쾭 ??젣 ?ㅽ뙣?대룄 UI?먯꽌??吏?곕뒗 寃껋씠 UX???먯뿰?ㅻ윭?
+        // 서버 삭제 실패여도 UI에서는 제거하는 편이 UX상 자연스럽다.
       }
     });
   }
 
-  // 3. UI 諛?濡쒖뺄 ?곗씠?곗뿉????젣
+  // 3. UI 및 로컬 데이터에서 제거
   citations.splice(targetIndex, 1);
   
-  // ?대쫫 ?ъ젙??(D1, D2...)
+  // 이름 재정렬 (D1, D2...)
   citations.forEach((c, index) => {
-    c.name = `?몄슜諛쒕챸 ${index + 1}`;
+    c.name = `인용발명 ${index + 1}`;
   });
   
   renderCitations();
@@ -842,7 +844,7 @@ function renderCitations() {
   const readOnly = document.body.classList.contains('analysis-active');
   
   if (citations.length === 0) {
-    list.innerHTML = '<li class="empty-placeholder" style="list-style:none; padding:20px; text-align:center; color:#888;">遺꾩꽍????쓣 ?좏깮?섍퀬 異붽??섏꽭??</li>';
+    list.innerHTML = '<li class="empty-placeholder" style="list-style:none; padding:20px; text-align:center; color:#888;">분석할 탭을 선택하고 추가해 주세요.</li>';
     return;
   }
 
@@ -851,7 +853,7 @@ function renderCitations() {
     li.className = 'citation-item';
     li.setAttribute('role', 'button');
     li.setAttribute('tabindex', '0');
-    li.setAttribute('aria-label', `${c.name} 誘몃━蹂닿린 ?닿린`);
+    li.setAttribute('aria-label', `${c.name} 미리보기 열기`);
     
     const badgeClass = c.status; 
     
@@ -863,7 +865,7 @@ function renderCitations() {
       <div class="citation-actions">
         <span class="status-badge ${badgeClass}">${c.status}</span>
         ${readOnly ? '' : `
-        <button class="btn-delete-citation" title="??젣">
+        <button class="btn-delete-citation" title="삭제">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -900,18 +902,18 @@ function openModal(citation) {
   const title = document.getElementById('modal-title');
   const content = document.getElementById('modal-text-content');
   
-  title.textContent = `${citation.name} ?댁슜 誘몃━蹂닿린`;
+  title.textContent = `${citation.name} 내용 미리보기`;
   
   if (citation.status === 'uploading' || citation.status === 'processing') {
-    content.textContent = "?꾩옱 ?뚯씪??泥섎━ 以묒엯?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂.";
+    content.textContent = '현재 파일을 처리 중입니다. 잠시 후 다시 시도해 주세요.';
   } else if (citation.text) {
     const MAX_LENGTH = 20000;
     const displayUserInfo = citation.text.length > MAX_LENGTH 
-      ? citation.text.substring(0, MAX_LENGTH) + "\n\n... (?띿뒪?멸? ?덈Т 湲몄뼱 ?앸왂??" 
+      ? citation.text.substring(0, MAX_LENGTH) + '\n\n... (텍스트가 너무 길어 생략됨)'
       : citation.text;
     content.textContent = displayUserInfo;
   } else {
-    content.textContent = "(異붿텧???띿뒪?멸? ?놁뒿?덈떎)";
+    content.textContent = '(추출된 텍스트가 없습니다)';
   }
   
   openDialogModal('preview-modal', '#btn-close-modal');
@@ -922,7 +924,7 @@ function closeModal() {
 }
 
 function openDirectAddModal() {
-  document.getElementById('direct-citation-name').value = `?몄슜諛쒕챸 ${citations.length + 1}`;
+  document.getElementById('direct-citation-name').value = `인용발명 ${citations.length + 1}`;
   document.getElementById('direct-citation-content').value = '';
   openDialogModal('direct-add-modal', '#direct-citation-name');
 }
@@ -936,18 +938,18 @@ function handleDirectAdd() {
   const text = document.getElementById('direct-citation-content').value.trim();
 
   if (!name || !text) {
-    alert('臾몄꽌 ?대쫫怨??댁슜??紐⑤몢 ?낅젰?댁＜?몄슂.');
+    alert('문서 이름과 내용을 모두 입력해 주세요.');
     return;
   }
   
   const citationId = Date.now();
   const citationObj = { 
     id: citationId,
-    tabId: null, // 吏곸젒 異붽???tabId媛 ?놁쓬
+    tabId: null, // 직접 추가는 tabId가 없음
     name: name, 
     status: 'uploading', 
     fileId: null,
-    title: name, // ?쒕ぉ???대쫫?쇰줈 ?ㅼ젙
+    title: name, // 제목은 이름으로 설정
     text: text 
   };
   
@@ -989,7 +991,7 @@ function handleDirectAdd() {
       target.error = response.error;
       renderCitations();
       saveCitationsToStorage();
-      alert(`?낅줈???ㅽ뙣: ${response.error}`);
+      alert(`업로드 실패: ${response.error}`);
     }
   });
 }

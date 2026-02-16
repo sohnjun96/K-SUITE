@@ -5,6 +5,7 @@
   const FALLBACK_SIDEPANEL_HOST_URL =
     globalThis.KSUITE_FALLBACK_SIDEPANEL_HOST_URL || "https://example.com/";
   const FEEDBACK = globalThis.KSUITE_FEEDBACK;
+  const KLARC_DASHBOARD_PATH = "modules/k-larc/dashboard.html";
 
   if (!MESSAGE_TYPES || MODULES.length === 0 || typeof BUILD_MODULE_LAUNCHERS !== "function") {
     console.error("K-SUITE navigation constants are not initialized.");
@@ -92,6 +93,12 @@
     if (code === "LAUNCH_MODULE_FAILED") {
       return `${moduleTitle} 실행에 실패했습니다.`;
     }
+    if (code === "KSCAN_REQUIRES_KOMPASS") {
+      return "K-SCAN은 KOMPASS 탭에서 열어 주세요.";
+    }
+    if (code === "KQUERY_BLOCKED_TAB") {
+      return "K-Query는 확장프로그램 설정(chrome://extensions) 탭에서는 열 수 없습니다.";
+    }
 
     if (raw) {
       return `${moduleTitle} 실행 실패: ${raw}`;
@@ -106,7 +113,17 @@
 
   function isSidePanelCompatibleTabUrl(url) {
     if (typeof url !== "string") return false;
+    if (isBrowserExtensionsSettingsUrl(url)) return false;
     return url.startsWith("http://") || url.startsWith("https://");
+  }
+
+  function isBrowserExtensionsSettingsUrl(url) {
+    if (typeof url !== "string") return false;
+    return url.startsWith("chrome://extensions") || url.startsWith("edge://extensions");
+  }
+
+  function isKlarcDashboardUrl(url) {
+    return isSameModuleUrl(url, chrome.runtime.getURL(KLARC_DASHBOARD_PATH));
   }
 
   async function openOrFocusModuleTab(path) {
@@ -140,7 +157,7 @@
     throw createLaunchError("NO_TAB", "Failed to create fallback side panel tab.");
   }
 
-  async function getSidePanelTargetTabId() {
+  async function getSidePanelTargetTabId(moduleId) {
     let tabs = await chrome.tabs.query({
       active: true,
       lastFocusedWindow: true
@@ -154,7 +171,19 @@
     }
 
     const activeTab = tabs?.[0];
-    if (Number.isInteger(activeTab?.id) && isSidePanelCompatibleTabUrl(activeTab?.url)) {
+    const activeUrl = String(activeTab?.url || "");
+    if (moduleId === "k-query" && isBrowserExtensionsSettingsUrl(activeUrl)) {
+      throw createLaunchError(
+        "KQUERY_BLOCKED_TAB",
+        "K-Query는 확장프로그램 설정(chrome://extensions) 탭에서는 열 수 없습니다."
+      );
+    }
+    if (moduleId === "k-scan" && isKlarcDashboardUrl(activeUrl)) {
+      throw createLaunchError("KSCAN_REQUIRES_KOMPASS", "K-SCAN은 KOMPASS 탭에서 열어 주세요.");
+    }
+
+    const requireHttpTab = moduleId !== "k-query";
+    if (Number.isInteger(activeTab?.id) && (!requireHttpTab || isSidePanelCompatibleTabUrl(activeTab?.url))) {
       return activeTab.id;
     }
 
@@ -176,8 +205,8 @@
     return createFallbackSidePanelTab();
   }
 
-  async function openModuleInSidePanel(path) {
-    const tabId = await getSidePanelTargetTabId();
+  async function openModuleInSidePanel(path, moduleId) {
+    const tabId = await getSidePanelTargetTabId(moduleId);
 
     await chrome.sidePanel.setOptions({
       tabId,
@@ -236,8 +265,11 @@
 
       if (launcher.type === "sidepanel") {
         try {
-          await openModuleInSidePanel(launcher.path);
-        } catch {
+          await openModuleInSidePanel(launcher.path, moduleId);
+        } catch (error) {
+          if (error?.code === "KSCAN_REQUIRES_KOMPASS" || error?.code === "KQUERY_BLOCKED_TAB") {
+            throw error;
+          }
           await launchViaServiceWorker(moduleId);
         }
         showFeedback({

@@ -15,39 +15,40 @@
         <path d="M20 18V46" stroke="white" stroke-width="6" stroke-linecap="round"/>
         <path d="M44 18L20 32L44 46" stroke="#FCB034" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <h1>K-LARC ?몄슜諛쒕챸 遺꾩꽍湲?span class="badge-beta">v1.2.34</span></h1>
+      <h1>K-LARC 인용발명 분석기<span class="badge-beta">v1.2.34</span></h1>
     </div>
 
     <div class="settings-area">
-      <button id="btn-settings-toggle" class="btn-icon" title="?ㅼ젙 ?닿린">
+      <button id="btn-settings-toggle" class="btn-icon" title="설정 열기">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09c0 .66.39 1.24 1 1.51.57.24 1.23.12 1.69-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06c-.46.46-.58 1.12-.33 1.69.27.61.85 1 1.51 1H21a2 2 0 0 1 0 4h-.09c-.66 0-1.24.39-1.51 1z"></path>
         </svg>
       </button>
       <div class="settings-panel">
-        <span class="status-badge completed">怨듯넻 API Key ?ъ슜</span>
+        <span class="status-badge completed">공통 API Key 사용</span>
         <input type="password" id="api-key" hidden>
       </div>
     </div>
   </header>
+
 
   <main class="app-container">
     <div class="comparison-grid">
       <section class="input-panel panel" id="claims-panel">
         <div class="panel-header">
           <div class="panel-title-wrap">
-            <h2 id="claims-panel-title">泥?뎄??(Claims)</h2>
+            <h2 id="claims-panel-title">청구항 (Claims)</h2>
             <div id="claims-panel-meta" class="panel-title-meta"></div>
           </div>
           <div class="panel-header-actions">
             <div id="claim-view-select-wrap" class="claim-view-header">
-              <select id="claim-view-select-header" aria-label="泥?뎄???좏깮"></select>
+              <select id="claim-view-select-header" aria-label="청구항 선택"></select>
             </div>
-            <button id="btn-add-claim" class="btn-text" title="泥?뎄??異붽?">
-              + 異붽?
+            <button id="btn-add-claim" class="btn-text" title="청구항 추가">
+              + 추가
             </button>
-            <button id="btn-toggle-claims-panel" class="btn-icon panel-collapse-btn" type="button" aria-expanded="true" title="泥?뎄???⑤꼸 ?묎린/?쇱튂湲?>
+            <button id="btn-toggle-claims-panel" class="btn-icon panel-collapse-btn" type="button" aria-expanded="true" title="청구항 패널 접기/펼치기">
               <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
@@ -56,18 +57,18 @@
         </div>
         <div class="panel-summary" id="claim-summary-compact"></div>
         <div class="panel-body scrollable" id="claim-list">
-          <div class="empty-placeholder">泥?뎄??쓣 ?낅젰??二쇱꽭??</div>
+          <div class="empty-placeholder">청구항을 입력해 주세요.</div>
         </div>
       </section>
 
       <section class="input-panel panel" id="citations-panel">
         <div class="panel-header">
           <div class="panel-title-wrap">
-            <h2 id="citations-panel-title">?몄슜諛쒕챸 (References)</h2>
+            <h2 id="citations-panel-title">인용발명 (References)</h2>
             <div id="citations-panel-meta" class="panel-title-meta"></div>
           </div>
           <div class="panel-header-actions">
-            <button id="btn-toggle-citations-panel" class="btn-icon panel-collapse-btn" type="button" aria-expanded="true" title="?몄슜諛쒕챸 ?⑤꼸 ?묎린/?쇱튂湲?>
+            <button id="btn-toggle-citations-panel" class="btn-icon panel-collapse-btn" type="button" aria-expanded="true" title="인용발명 패널 접기/펼치기">
               <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
@@ -78,17 +79,17 @@
         <div class="panel-body panel-body-controls">
           <div class="input-controls">
             <select id="tab-select">
-              <option value="">-- 遺꾩꽍????쓣 ?좏깮 --</option>
+              <option value="">-- 분석할 탭을 선택 --</option>
             </select>
             <div class="button-group">
-              <button id="btn-add-citation" class="btn-primary-sm">??뿉??異붽?</button>
-              <button id="btn-add-direct" class="btn-secondary-sm">吏곸젒 ?낅젰 異붽?</button>
+              <button id="btn-add-citation" class="btn-primary-sm">탭에서 추가</button>
+              <button id="btn-add-direct" class="btn-secondary-sm">직접 입력 추가</button>
             </div>
           </div>
         </div>
         <div class="panel-body panel-body-list">
           <ul id="citation-list" class="citation-list">
-            <li class="empty-placeholder" style="list-style: none;">遺꾩꽍????쓣 ?좏깮?섍퀬 ?몄슜諛쒕챸??異붽???二쇱꽭??</li>
+            <li class="empty-placeholder" style="list-style: none;">분석할 탭을 선택하고 인용발명을 추가해 주세요.</li>
           </ul>
         </div>
       </section>
@@ -97,9 +98,9 @@
     <div class="action-bar">
       <div class="analysis-mode-toggle" role="radiogroup" aria-label="Analysis mode selection" data-mode="deep">
         <input type="radio" id="analysis-mode-quick" name="analysis-execution-mode" value="quick">
-        <label for="analysis-mode-quick">?띾룄 ?곗꽑 遺꾩꽍</label>
+        <label for="analysis-mode-quick">간편 분석</label>
         <input type="radio" id="analysis-mode-deep" name="analysis-execution-mode" value="deep" checked>
-        <label for="analysis-mode-deep">?뺣? 遺꾩꽍</label>
+        <label for="analysis-mode-deep">정밀 분석</label>
       </div>
       <div class="action-buttons">
         <button id="btn-analyze" class="btn-large-primary" type="button">
@@ -107,27 +108,27 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          ?몄슜諛쒕챸 遺꾩꽍 ?ㅽ뻾
+          인용발명 분석 실행
         </button>
-        <button id="btn-edit-mode" class="btn-secondary-sm hidden" type="button">?낅젰 紐⑤뱶濡??꾪솚</button>
+        <button id="btn-edit-mode" class="btn-secondary-sm hidden" type="button">입력 모드로 전환</button>
       </div>
     </div>
 
     <section class="panel result-panel" id="analysis-result-panel">
       <div class="panel-header">
-        <h2>遺꾩꽍 寃곌낵</h2>
+        <h2>분석 결과</h2>
 
         <div class="panel-header-actions">
           <div id="result-controls" class="result-controls hidden">
-            <label for="result-claim-select">泥?뎄??/label>
+            <label for="result-claim-select">청구항</label>
             <select id="result-claim-select"></select>
             <div class="divider"></div>
             <div id="sort-controls" class="sort-controls">
-              <button id="btn-sort-by-doc" class="btn-sort active" title="?몄슜諛쒕챸 湲곗? ?뺣젹">?몄슜諛쒕챸 湲곗?</button>
-              <button id="btn-sort-by-feature" class="btn-sort" title="援ъ꽦?붿냼 湲곗? ?뺣젹">援ъ꽦?붿냼 湲곗?</button>
+              <button id="btn-sort-by-doc" class="btn-sort active" title="인용발명 기준 정렬">인용발명 기준</button>
+              <button id="btn-sort-by-feature" class="btn-sort" title="구성요소 기준 정렬">구성요소 기준</button>
             </div>
           </div>
-          <button id="btn-toggle-result-panel" class="btn-icon panel-collapse-btn result-collapse-btn" type="button" aria-expanded="true" title="寃곌낵 ?⑤꼸 ?묎린/?쇱튂湲?>
+          <button id="btn-toggle-result-panel" class="btn-icon panel-collapse-btn result-collapse-btn" type="button" aria-expanded="true" title="결과 패널 접기/펼치기">
             <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
@@ -142,11 +143,11 @@
         </div>
 
         <div class="empty-state">
-          <p>泥?뎄??낵 ?몄슜諛쒕챸???ㅼ젙????"?몄슜諛쒕챸 遺꾩꽍 ?ㅽ뻾" 踰꾪듉???뚮윭 二쇱꽭??</p>
+          <p>청구항과 인용발명을 설정한 뒤 "인용발명 분석 실행" 버튼을 눌러 주세요.</p>
         </div>
 
         <div id="claim-summary-box" class="claim-summary sticky-header hidden">
-          <h4>泥?뎄??援ъ꽦?붿냼 ?붿빟</h4>
+          <h4>청구항 구성요소 요약</h4>
           <div id="claim-features-list"></div>
         </div>
 
@@ -161,12 +162,12 @@
           </colgroup>
           <thead>
             <tr>
-              <th>援ъ꽦?붿냼(F)</th>
-              <th>?몄슜諛쒕챸(Ref)</th>
-              <th>愿???댁슜 (Content)</th>
-              <th>?꾩튂 (Pos)</th>
-              <th>?쇱튂 ?좏삎 (Match)</th>
-              <th>寃利?/th>
+              <th>구성요소(F)</th>
+              <th>인용발명(Ref)</th>
+              <th>관련 내용 (Content)</th>
+              <th>위치 (Pos)</th>
+              <th>일치 유형 (Match)</th>
+              <th>검증</th>
             </tr>
           </thead>
           <tbody id="result-tbody"></tbody>
@@ -176,30 +177,30 @@
 
     <section class="panel opinion-notice-panel">
       <div class="panel-header">
-        <h2>?섍껄?쒖텧?듭????묒꽦 ?꾧뎄</h2>
+        <h2>의견제출통지서</h2>
       </div>
       <div class="panel-body opinion-notice-body">
         <div class="opinion-notice-controls">
           <div class="notice-control-group">
-            <label for="notice-claim-select">泥?뎄???좏깮</label>
+            <label for="notice-claim-select">청구항 선택</label>
             <select id="notice-claim-select"></select>
           </div>
           <div class="notice-control-group">
-            <span class="notice-toggle-label">泥?뎄???좏삎</span>
-            <div class="notice-type-toggle" role="radiogroup" aria-label="?섍껄?쒖텧?듭???泥?뎄???좏삎">
+            <span class="notice-toggle-label">청구항 유형</span>
+            <div class="notice-type-toggle" role="radiogroup" aria-label="의견제출통지서 청구항 유형">
               <input type="radio" id="notice-type-independent" name="notice-claim-type" value="independent" checked>
-              <label for="notice-type-independent">?낅┰??/label>
+              <label for="notice-type-independent">독립항</label>
               <input type="radio" id="notice-type-dependent" name="notice-claim-type" value="dependent">
-              <label for="notice-type-dependent">醫낆냽??/label>
+              <label for="notice-type-dependent">종속항</label>
             </div>
           </div>
           <div class="notice-control-group">
-            <button id="btn-copy-opinion-notice-tsv" class="btn-secondary-sm" type="button">??TSV 蹂듭궗</button>
+            <button id="btn-copy-opinion-notice-tsv" class="btn-secondary-sm" type="button">표 TSV 복사</button>
           </div>
         </div>
 
         <div id="opinion-notice-empty" class="empty-state opinion-notice-empty">
-          遺꾩꽍 寃곌낵媛 ?덉뼱???섍껄?쒖텧?듭??쒕? ?앹꽦?????덉뒿?덈떎.
+          분석 결과가 있어야 의견제출통지서를 생성할 수 있습니다.
         </div>
 
         <table id="opinion-notice-table" class="result-table opinion-notice-table hidden">
@@ -211,10 +212,10 @@
           </colgroup>
           <thead>
             <tr>
-              <th>援ъ꽦?붿냼</th>
-              <th>泥?뎄??援ъ꽦?붿냼</th>
-              <th id="opinion-notice-ref-header">?몄슜諛쒕챸 1</th>
-              <th>?됯?</th>
+              <th>구성요소</th>
+              <th>청구항 구성요소</th>
+              <th id="opinion-notice-ref-header">인용발명 1</th>
+              <th>평가</th>
             </tr>
           </thead>
           <tbody id="opinion-notice-tbody"></tbody>
@@ -224,15 +225,15 @@
 
     <section class="panel chat-panel">
       <div class="panel-header">
-        <h2>?몄슜諛쒕챸 Q&A</h2>
+        <h2>인용발명 Q&A</h2>
       </div>
       <div class="panel-body">
         <div class="chat-input-area">
-          <textarea id="chat-input" rows="3" placeholder="?몄슜諛쒕챸 愿??吏덈Ц???낅젰??二쇱꽭?? (?? D1 臾명뿄?먯꽌 援ъ꽦 李⑥씠?먯쓣 ?ㅻ챸?댁쨾)"></textarea>
-          <button id="btn-send-chat" class="btn-primary-sm">吏덈Ц ?꾩넚</button>
+          <textarea id="chat-input" rows="3" placeholder="인용발명 관련 질문을 입력해 주세요. (예: D1 문헌에서 구성 차이점을 설명해줘)"></textarea>
+          <button id="btn-send-chat" class="btn-primary-sm">질문 전송</button>
         </div>
         <div id="chat-response-area" class="chat-response hidden">
-          <strong>AI ?묐떟:</strong>
+          <strong>AI 응답:</strong>
           <div id="chat-content" class="markdown-body"></div>
         </div>
       </div>
@@ -240,13 +241,13 @@
 
     <section class="panel debug-panel">
       <div class="panel-header">
-        <h2>?붾쾭洹??곗씠??/h2>
+        <h2>디버그 데이터</h2>
         <div class="debug-controls">
-          <label for="debug-claim-select">泥?뎄??/label>
+          <label for="debug-claim-select">청구항</label>
           <select id="debug-claim-select"></select>
-          <span id="debug-last-updated" class="debug-last-updated">?낅뜲?댄듃: -</span>
+          <span id="debug-last-updated" class="debug-last-updated">업데이트: -</span>
           <button id="btn-download-analysis-json" class="btn-secondary-sm hidden" type="button">
-            JSON ?ㅼ슫濡쒕뱶
+            JSON 다운로드
           </button>
         </div>
       </div>
@@ -254,22 +255,22 @@
         <div id="debug-claim-summary" class="debug-claim-summary hidden"></div>
         <div class="debug-sticky">
           <div class="debug-tabs">
-            <button class="debug-tab active" data-tab="stepA">A ?④퀎</button>
-            <button class="debug-tab" data-tab="stepB">B ?④퀎</button>
-            <button class="debug-tab" data-tab="stepC">C ?④퀎</button>
-            <button class="debug-tab" data-tab="stepD">D ?④퀎</button>
+            <button class="debug-tab active" data-tab="stepA">A 단계</button>
+            <button class="debug-tab" data-tab="stepB">B 단계</button>
+            <button class="debug-tab" data-tab="stepC">C 단계</button>
+            <button class="debug-tab" data-tab="stepD">D 단계</button>
             <button class="debug-tab" data-tab="quick">Quick</button>
-            <button class="debug-tab" data-tab="verification">寃利?/button>
-            <button class="debug-tab" data-tab="final">理쒖쥌</button>
+            <button class="debug-tab" data-tab="verification">검증</button>
+            <button class="debug-tab" data-tab="final">최종</button>
           </div>
           <div class="debug-tools">
             <label class="debug-search-wrap" for="debug-search-input">
-              <span>?꾪꽣</span>
-              <input id="debug-search-input" type="search" placeholder="key / path / value 寃??>
+              <span>필터</span>
+              <input id="debug-search-input" type="search" placeholder="key / path / value 검색">
             </label>
             <div class="debug-tool-actions">
-              <button id="btn-debug-expand-all" class="btn-secondary-sm debug-tool-btn" type="button">?꾩껜 ?쇱튂湲?/button>
-              <button id="btn-debug-collapse-all" class="btn-secondary-sm debug-tool-btn" type="button">?꾩껜 ?묎린</button>
+              <button id="btn-debug-expand-all" class="btn-secondary-sm debug-tool-btn" type="button">전체 펼치기</button>
+              <button id="btn-debug-collapse-all" class="btn-secondary-sm debug-tool-btn" type="button">전체 접기</button>
             </div>
           </div>
         </div>
@@ -280,7 +281,7 @@
               <strong id="debug-detail-title"></strong>
               <span id="debug-detail-meta"></span>
             </div>
-            <div id="debug-content" class="debug-content">?좏깮???곗씠?곌? ?놁뒿?덈떎.</div>
+            <div id="debug-content" class="debug-content">선택된 데이터가 없습니다.</div>
           </div>
         </div>
       </div>
@@ -290,8 +291,8 @@
   <div id="direct-add-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="direct-add-modal-title" tabindex="-1">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="direct-add-modal-title">?몄슜諛쒕챸 吏곸젒 ?낅젰 異붽?</h3>
-        <button id="btn-close-direct-modal" class="btn-icon" title="?リ린">
+        <h3 id="direct-add-modal-title">인용발명 직접 입력 추가</h3>
+        <button id="btn-close-direct-modal" class="btn-icon" title="닫기">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -300,17 +301,17 @@
       </div>
       <div class="modal-body">
         <div class="input-group">
-          <label for="direct-citation-name">?몄슜諛쒕챸 ?대쫫</label>
-          <input type="text" id="direct-citation-name" placeholder="?? D3, US 12345 B2">
+          <label for="direct-citation-name">인용발명 이름</label>
+          <input type="text" id="direct-citation-name" placeholder="예: D3, US 12345 B2">
         </div>
         <div class="input-group">
-          <label for="direct-citation-content">?몄슜諛쒕챸 ?댁슜</label>
-          <textarea id="direct-citation-content" rows="10" placeholder="?몄슜諛쒕챸 ?댁슜??遺숈뿬 ?ｌ뼱 二쇱꽭??"></textarea>
+          <label for="direct-citation-content">인용발명 내용</label>
+          <textarea id="direct-citation-content" rows="10" placeholder="인용발명 내용을 붙여 넣어 주세요."></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button id="btn-cancel-direct-add" class="btn-secondary">痍⑥냼</button>
-        <button id="btn-save-direct-add" class="btn-primary">異붽?</button>
+        <button id="btn-cancel-direct-add" class="btn-secondary">취소</button>
+        <button id="btn-save-direct-add" class="btn-primary">추가</button>
       </div>
     </div>
   </div>
@@ -318,8 +319,8 @@
   <div id="preview-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modal-title" tabindex="-1">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="modal-title">?몄슜諛쒕챸 ?댁슜 誘몃━蹂닿린</h3>
-        <button id="btn-close-modal" class="btn-icon" title="?リ린">
+        <h3 id="modal-title">인용발명 내용 미리보기</h3>
+        <button id="btn-close-modal" class="btn-icon" title="닫기">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -327,7 +328,7 @@
         </button>
       </div>
       <div class="modal-body">
-        <pre id="modal-text-content">遺덈윭?ㅻ뒗 以?..</pre>
+        <pre id="modal-text-content">불러오는 중...</pre>
       </div>
     </div>
   </div>
@@ -335,8 +336,8 @@
   <div id="verification-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="verification-modal-title" tabindex="-1">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="verification-modal-title">寃利?寃곌낵 ?곸꽭 ?댁슜</h3>
-        <button id="btn-close-verification-modal" class="btn-icon" title="?リ린">
+        <h3 id="verification-modal-title">검증 결과 상세 내용</h3>
+        <button id="btn-close-verification-modal" class="btn-icon" title="닫기">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -347,8 +348,8 @@
         <p id="verification-modal-content"></p>
       </div>
       <div class="modal-footer">
-        <button id="btn-copy-verification-content" class="btn-primary">?댁슜 蹂듭궗</button>
-        <button id="btn-close-verification-modal-footer" class="btn-secondary">?リ린</button>
+        <button id="btn-copy-verification-content" class="btn-primary">내용 복사</button>
+        <button id="btn-close-verification-modal-footer" class="btn-secondary">닫기</button>
       </div>
     </div>
   </div>
@@ -356,8 +357,8 @@
   <div id="position-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="position-modal-title" tabindex="-1">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="position-modal-title">?몄슜 ?꾩튂 ?곸꽭 ?댁슜</h3>
-        <button id="btn-close-position-modal" class="btn-icon" title="?リ린">
+        <h3 id="position-modal-title">인용 위치 상세 내용</h3>
+        <button id="btn-close-position-modal" class="btn-icon" title="닫기">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -367,17 +368,17 @@
       <div class="modal-body">
         <div id="position-modal-content">
           <section class="position-modal-section">
-            <h4 class="position-modal-subtitle">&#50836;&#50557;&#45236;&#50857;</h4>
-            <pre id="position-modal-summary" class="position-modal-text">Loading...</pre>
+            <h4 class="position-modal-subtitle">요약내용</h4>
+            <pre id="position-modal-summary" class="position-modal-text">불러오는 중...</pre>
           </section>
           <section class="position-modal-section">
-            <h4 class="position-modal-subtitle">&#50896;&#47928;</h4>
-            <pre id="position-modal-source" class="position-modal-text">Loading...</pre>
+            <h4 class="position-modal-subtitle">원문</h4>
+            <pre id="position-modal-source" class="position-modal-text">불러오는 중...</pre>
           </section>
         </div>
       </div>
       <div class="modal-footer">
-        <button id="btn-close-position-modal-footer" class="btn-secondary">?リ린</button>
+        <button id="btn-close-position-modal-footer" class="btn-secondary">닫기</button>
       </div>
     </div>
   </div>
@@ -393,8 +394,7 @@
   <script src="scripts/chat.js"></script>
   <script src="scripts/main.js"></script>
   <footer>
-    <p class="copyright">짤 2026. K-SUITE. All Rights Reserved.</p>
+    <p class="copyright">© 2026. 반도체설계심사과 심사관 손준혁. All Rights Reserved.</p>
   </footer>
 </body>
 </html>
-

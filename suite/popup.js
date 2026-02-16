@@ -12,6 +12,7 @@ const MESSAGE_TYPES = globalThis.KSUITE_MESSAGE_TYPES;
 const STORAGE_KEYS = globalThis.KSUITE_STORAGE_KEYS;
 const FALLBACK_SIDEPANEL_HOST_URL =
   globalThis.KSUITE_FALLBACK_SIDEPANEL_HOST_URL || "https://example.com/";
+const KLARC_DASHBOARD_PATH = "modules/k-larc/dashboard.html";
 
 if (!MESSAGE_TYPES || !STORAGE_KEYS) {
   throw new Error("K-SUITE shared constants are not initialized.");
@@ -46,6 +47,12 @@ function getModuleById(moduleId) {
 
 function toErrorMessage(error) {
   return error?.message || String(error);
+}
+
+function createLaunchError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function setStatus(target, text, tone = "") {
@@ -356,7 +363,27 @@ async function reloadFromStorage(showMessage = true) {
 
 function isSidePanelCompatibleTabUrl(url) {
   if (typeof url !== "string") return false;
+  if (isBrowserExtensionsSettingsUrl(url)) return false;
   return url.startsWith("http://") || url.startsWith("https://");
+}
+
+function isBrowserExtensionsSettingsUrl(url) {
+  if (typeof url !== "string") return false;
+  return url.startsWith("chrome://extensions") || url.startsWith("edge://extensions");
+}
+
+function isKlarcDashboardUrl(url) {
+  return isSameModuleUrl(url, chrome.runtime.getURL(KLARC_DASHBOARD_PATH));
+}
+
+async function getActiveTab() {
+  let tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+
+  if (!tabs || tabs.length === 0 || !tabs[0]?.id) {
+    tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  }
+
+  return tabs?.[0] || null;
 }
 
 async function createFallbackSidePanelTab() {
@@ -370,17 +397,23 @@ async function createFallbackSidePanelTab() {
   return created.id;
 }
 
-async function getActiveTabId(requireSidePanelCompatible = false) {
-  let tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+async function getActiveTabId(moduleId = "", requireSidePanelCompatible = false) {
+  const activeTab = await getActiveTab();
+  const tabId = activeTab?.id;
+  const activeUrl = String(activeTab?.url || "");
 
-  if (!tabs || tabs.length === 0 || !tabs[0]?.id) {
-    tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (moduleId === "k-query" && isBrowserExtensionsSettingsUrl(activeUrl)) {
+    throw createLaunchError(
+      "KQUERY_BLOCKED_TAB",
+      "K-Query는 확장프로그램 설정(chrome://extensions) 탭에서는 열 수 없습니다."
+    );
   }
 
-  const activeTab = tabs?.[0];
-  const tabId = activeTab?.id;
+  if (moduleId === "k-scan" && isKlarcDashboardUrl(activeUrl)) {
+    throw createLaunchError("KSCAN_REQUIRES_KOMPASS", "K-SCAN은 KOMPASS 탭에서 열어 주세요.");
+  }
 
-  if (Number.isInteger(tabId) && (!requireSidePanelCompatible || isSidePanelCompatibleTabUrl(activeTab?.url))) {
+  if (Number.isInteger(tabId) && (!requireSidePanelCompatible || isSidePanelCompatibleTabUrl(activeUrl))) {
     return tabId;
   }
 
@@ -407,8 +440,9 @@ async function getActiveTabId(requireSidePanelCompatible = false) {
   return tabId;
 }
 
-async function openSidePanel(path) {
-  const tabId = await getActiveTabId(true);
+async function openSidePanel(path, moduleId) {
+  const requireCompatible = moduleId !== "k-query";
+  const tabId = await getActiveTabId(moduleId, requireCompatible);
 
   await chrome.sidePanel.setOptions({
     tabId,
@@ -448,8 +482,21 @@ async function launchViaServiceWorker(moduleId) {
   });
 
   if (!response?.ok) {
-    throw new Error(response?.error || "Unknown launch error");
+    const error = new Error(response?.error || "Unknown launch error");
+    error.code = response?.code || "LAUNCH_MODULE_FAILED";
+    throw error;
   }
+}
+
+function formatLaunchError(module, error) {
+  const code = error?.code || "";
+  if (code === "KSCAN_REQUIRES_KOMPASS") {
+    return "K-SCAN은 KOMPASS 탭에서 실행해 주세요.";
+  }
+  if (code === "KQUERY_BLOCKED_TAB") {
+    return "K-Query는 확장프로그램 설정(chrome://extensions) 탭에서는 열 수 없습니다.";
+  }
+  return `${module.title} 실행 실패: ${toErrorMessage(error)}`;
 }
 
 async function launchModule(moduleId) {
@@ -488,8 +535,11 @@ async function launchModule(moduleId) {
 
     if (module.launchType === "sidepanel") {
       try {
-        await openSidePanel(module.path);
-      } catch {
+        await openSidePanel(module.path, module.id);
+      } catch (error) {
+        if (error?.code === "KSCAN_REQUIRES_KOMPASS" || error?.code === "KQUERY_BLOCKED_TAB") {
+          throw error;
+        }
         await launchViaServiceWorker(module.id);
       }
       setLaunchFeedback({ message: `${module.title} 사이드바를 열었습니다.`, tone: "ok" });
@@ -498,11 +548,14 @@ async function launchModule(moduleId) {
 
     throw new Error(`지원하지 않는 실행 방식: ${module.launchType}`);
   } catch (error) {
+    const isWarn =
+      error?.code === "KSCAN_REQUIRES_KOMPASS" ||
+      error?.code === "KQUERY_BLOCKED_TAB";
     setLaunchFeedback({
-      message: `${module.title} 실행 실패: ${toErrorMessage(error)}`,
-      tone: "error",
-      showRetry: true,
-      moduleId: module.id
+      message: formatLaunchError(module, error),
+      tone: isWarn ? "warn" : "error",
+      showRetry: !isWarn,
+      moduleId: isWarn ? "" : module.id
     });
   } finally {
     state.launchInProgress = false;

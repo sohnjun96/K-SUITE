@@ -1,9 +1,8 @@
-const DEFAULT_WEBUI_BASE_URL = "http://10.133.111.32:8080";
+const KSCAN_DEFAULT_WEBUI_BASE_URL = "http://10.133.111.32:8080";
 const CHAT_COMPLETIONS_PATH = "/api/chat/completions";
-const MODEL_NAME = String(globalThis.KSUITE_DEFAULT_LLM_MODEL || "").trim();
-if (!MODEL_NAME) {
-  throw new Error("K-SUITE default model is not initialized.");
-}
+const MODEL_NAME = String(
+  globalThis.KSUITE_DEFAULT_LLM_MODEL || "gpt-oss-120b"
+).trim();
 const HISTORY_KEY = "bp_history_v1";
 
 let resultWindowId = null;
@@ -23,9 +22,32 @@ const DEFAULT_TEMPLATE_PATH = "modules/k-scan/prompts/default.txt";
 const DEFAULT_TEMPLATE_FALLBACK = "text1 {출원발명} text2 {인용발명} text3";
 let defaultTemplatePromise = null;
 
+function isCapturableTabUrl(url) {
+  if (typeof url !== "string") return false;
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
+function withTimeout(promise, timeoutMs, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} 시간 초과 (${timeoutMs}ms)`));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 async function getApiUrl() {
   const data = await chrome.storage.local.get(["webuiBaseUrl"]);
-  const baseUrl = String(data.webuiBaseUrl || DEFAULT_WEBUI_BASE_URL)
+  const baseUrl = String(data.webuiBaseUrl || KSCAN_DEFAULT_WEBUI_BASE_URL)
     .trim()
     .replace(/\/+$/, "");
   return `${baseUrl}${CHAT_COMPLETIONS_PATH}`;
@@ -397,14 +419,35 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return undefined;
   }
 
+  let responded = false;
+  const safeRespond = (payload) => {
+    if (responded) return;
+    responded = true;
+    sendResponse(payload);
+  };
+
+  const guardTimer = setTimeout(() => {
+    safeRespond({ ok: false, error: "백그라운드 처리 시간 초과" });
+  }, 8000);
+
   (async () => {
     if (msg?.type === "START_CAPTURE") {
       const tabId = msg.tabId;
       try {
-        await attachDebugger(tabId);
-        sendResponse({ ok: true });
+        if (!Number.isInteger(tabId)) {
+          throw new Error("유효하지 않은 탭 ID입니다.");
+        }
+
+        const tab = await chrome.tabs.get(tabId);
+        const tabUrl = String(tab?.url || "");
+        if (!isCapturableTabUrl(tabUrl)) {
+          throw new Error("HTTP/HTTPS 탭에서만 캡처를 시작할 수 있습니다.");
+        }
+
+        await withTimeout(attachDebugger(tabId), 5000, "디버거 연결");
+        safeRespond({ ok: true });
       } catch (e) {
-        sendResponse({ ok: false, error: String(e?.message ?? e) });
+        safeRespond({ ok: false, error: String(e?.message ?? e) });
       }
       return;
     }
@@ -412,14 +455,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg?.type === "STOP_CAPTURE") {
       const tabId = msg.tabId;
       try {
-        await detachDebugger(tabId);
-        sendResponse({ ok: true });
+        if (!Number.isInteger(tabId)) {
+          throw new Error("유효하지 않은 탭 ID입니다.");
+        }
+        await withTimeout(detachDebugger(tabId), 5000, "디버거 해제");
+        safeRespond({ ok: true });
       } catch (e) {
-        sendResponse({ ok: false, error: String(e?.message ?? e) });
+        safeRespond({ ok: false, error: String(e?.message ?? e) });
       }
       return;
     }
-  })();
+  })()
+    .catch((error) => {
+      safeRespond({ ok: false, error: String(error?.message ?? error) });
+    })
+    .finally(() => {
+      clearTimeout(guardTimer);
+    });
 
   return true;
 });

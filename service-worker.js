@@ -12,6 +12,7 @@ const MESSAGE_TYPES = globalThis.KSUITE_MESSAGE_TYPES;
 const STORAGE_KEYS = globalThis.KSUITE_STORAGE_KEYS;
 const MODULES = Array.isArray(globalThis.KSUITE_MODULES) ? globalThis.KSUITE_MODULES : [];
 const BUILD_MODULE_LAUNCHERS = globalThis.KSUITE_BUILD_MODULE_LAUNCHERS;
+const KLARC_DASHBOARD_PATH = "modules/k-larc/dashboard.html";
 
 if (!MESSAGE_TYPES || !STORAGE_KEYS || MODULES.length === 0 || typeof BUILD_MODULE_LAUNCHERS !== "function") {
   throw new Error("K-SUITE shared constants are not initialized.");
@@ -25,8 +26,18 @@ function createLaunchError(code, message) {
   return error;
 }
 
-function isSidePanelCompatibleTabUrl(url) {
+function isBrowserExtensionsSettingsUrl(url) {
   if (typeof url !== "string") return false;
+  return url.startsWith("chrome://extensions") || url.startsWith("edge://extensions");
+}
+
+function isSidePanelCompatibleTabUrl(url, moduleId = "") {
+  if (typeof url !== "string") return false;
+
+  if (moduleId === "k-query") {
+    return !isBrowserExtensionsSettingsUrl(url);
+  }
+
   return url.startsWith("http://") || url.startsWith("https://");
 }
 
@@ -41,7 +52,28 @@ async function createFallbackSidePanelTab() {
   throw createLaunchError("NO_TAB", "No tab found to open side panel.");
 }
 
-async function pickSidePanelTabId(fallbackTabId) {
+function isKlarcDashboardUrl(url) {
+  const targetUrl = chrome.runtime.getURL(KLARC_DASHBOARD_PATH);
+  return isSameModuleUrl(url, targetUrl);
+}
+
+function assertSidePanelLaunchContext(tab, moduleId) {
+  const tabUrl = String(tab?.url || "");
+  if (moduleId === "k-query" && isBrowserExtensionsSettingsUrl(tabUrl)) {
+    throw createLaunchError(
+      "KQUERY_BLOCKED_TAB",
+      "K-Query는 확장프로그램 설정(chrome://extensions) 탭에서는 열 수 없습니다."
+    );
+  }
+  if (moduleId === "k-scan" && isKlarcDashboardUrl(tabUrl)) {
+    throw createLaunchError(
+      "KSCAN_REQUIRES_KOMPASS",
+      "K-SCAN은 KOMPASS 탭에서 열어 주세요."
+    );
+  }
+}
+
+async function pickSidePanelTabId(fallbackTabId, moduleId = "") {
   const visited = new Set();
 
   const tryTabId = async (tabId) => {
@@ -51,10 +83,14 @@ async function pickSidePanelTabId(fallbackTabId) {
     try {
       const tab = await chrome.tabs.get(tabId);
       if (!tab?.id) return null;
-      if (isSidePanelCompatibleTabUrl(tab.url)) {
+      assertSidePanelLaunchContext(tab, moduleId);
+      if (isSidePanelCompatibleTabUrl(tab.url, moduleId)) {
         return tab.id;
       }
-    } catch {
+    } catch (error) {
+      if (error?.code === "KQUERY_BLOCKED_TAB" || error?.code === "KSCAN_REQUIRES_KOMPASS") {
+        throw error;
+      }
       return null;
     }
     return null;
@@ -76,6 +112,9 @@ async function pickSidePanelTabId(fallbackTabId) {
   }
 
   const activeTab = tabs?.[0];
+  if (activeTab) {
+    assertSidePanelLaunchContext(activeTab, moduleId);
+  }
 
   const activePreferred = await tryTabId(activeTab?.id);
   if (activePreferred) return activePreferred;
@@ -84,22 +123,22 @@ async function pickSidePanelTabId(fallbackTabId) {
   if (Number.isInteger(activeWindowId)) {
     const sameWindowTabs = await chrome.tabs.query({ windowId: activeWindowId });
     const preferred = sameWindowTabs.find((tab) =>
-      Number.isInteger(tab?.id) && isSidePanelCompatibleTabUrl(tab?.url)
+      Number.isInteger(tab?.id) && isSidePanelCompatibleTabUrl(tab?.url, moduleId)
     );
     if (preferred?.id) return preferred.id;
   }
 
   const allTabs = await chrome.tabs.query({});
   const fallbackPreferred = allTabs.find((tab) =>
-    Number.isInteger(tab?.id) && isSidePanelCompatibleTabUrl(tab?.url)
+    Number.isInteger(tab?.id) && isSidePanelCompatibleTabUrl(tab?.url, moduleId)
   );
   if (fallbackPreferred?.id) return fallbackPreferred.id;
 
   return createFallbackSidePanelTab();
 }
 
-async function openModuleInSidePanel(path, fallbackTabId) {
-  const tabId = await pickSidePanelTabId(fallbackTabId);
+async function openModuleInSidePanel(path, fallbackTabId, moduleId = "") {
+  const tabId = await pickSidePanelTabId(fallbackTabId, moduleId);
 
   await chrome.sidePanel.setOptions({
     tabId,
@@ -147,11 +186,37 @@ async function launchModule(moduleId, fallbackTabId) {
   }
 
   if (launcher.type === "sidepanel") {
-    await openModuleInSidePanel(launcher.path, fallbackTabId);
+    await openModuleInSidePanel(launcher.path, fallbackTabId, moduleId);
     return;
   }
 
   throw createLaunchError("UNSUPPORTED_LAUNCH_TYPE", `Unsupported launch type: ${launcher.type}`);
+}
+
+async function handleScanCaptureControl(message) {
+  const type = String(message?.type || "");
+  const tabId = message?.tabId;
+  if (!Number.isInteger(tabId)) {
+    throw createLaunchError("INVALID_TAB_ID", "유효하지 않은 탭 ID입니다.");
+  }
+
+  if (type === "START_CAPTURE") {
+    if (typeof attachDebugger !== "function") {
+      throw createLaunchError("KSCAN_HANDLER_MISSING", "K-SCAN 캡처 핸들러를 찾을 수 없습니다.");
+    }
+    await attachDebugger(tabId);
+    return;
+  }
+
+  if (type === "STOP_CAPTURE") {
+    if (typeof detachDebugger !== "function") {
+      throw createLaunchError("KSCAN_HANDLER_MISSING", "K-SCAN 중지 핸들러를 찾을 수 없습니다.");
+    }
+    await detachDebugger(tabId);
+    return;
+  }
+
+  throw createLaunchError("UNSUPPORTED_CAPTURE_TYPE", `Unsupported capture message: ${type}`);
 }
 
 async function migrateLegacySharedApiKeyIfNeeded() {
@@ -229,6 +294,20 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "START_CAPTURE" || message?.type === "STOP_CAPTURE") {
+    Promise.resolve()
+      .then(() => handleScanCaptureControl(message))
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error?.message || String(error),
+          code: error?.code || "KSCAN_CAPTURE_FAILED"
+        });
+      });
+    return true;
+  }
+
   if (message?.type !== MESSAGE_TYPES.LAUNCH_MODULE) return undefined;
 
   Promise.resolve()

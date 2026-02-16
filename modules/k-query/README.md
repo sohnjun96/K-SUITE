@@ -38,13 +38,32 @@ K-Query는 크롬 MV3 사이드패널 확장으로, 특허 청구항을 **논리
 ├── manifest.json
 ├── prompts/
 │   ├── layer_1/
-│   │   ├── extraction.txt
-│   │   └── relations.txt
+│   │   ├── extraction/
+│   │   │   ├── system.txt
+│   │   │   ├── user.txt
+│   │   │   └── schema.json
+│   │   └── relations/
+│   │       ├── system.txt
+│   │       ├── user.txt
+│   │       └── schema.json
 │   ├── layer_2/
-│   │   ├── expansion_base.txt
-│   │   └── evaluation.txt
+│   │   ├── expansion/
+│   │   │   ├── system.txt
+│   │   │   ├── user.txt
+│   │   │   └── schema.json
+│   │   ├── evaluation/
+│   │   │   ├── system.txt
+│   │   │   ├── user.txt
+│   │   │   └── schema.json
+│   │   └── context_filter/
+│   │       ├── system.txt
+│   │       ├── user.txt
+│   │       └── schema.json
 │   └── layer_3/
-│       └── validation.txt
+│       └── validation/
+│           ├── system.txt
+│           ├── user.txt
+│           └── schema.json
 └── src/
     ├── core/
     │   ├── api_clients.js
@@ -63,20 +82,23 @@ K-Query는 크롬 MV3 사이드패널 확장으로, 특허 청구항을 **논리
 ```
 
 ## 프롬프트 플레이스홀더
-각 프롬프트는 코드에서 요구하는 변수명을 포함해야 합니다.
+각 단계는 `system.txt + user.txt + schema.json` 번들로 로딩됩니다.
+`schema.json`은 `required`, `optional`, `types(text|json|list)`를 정의하며, 누락된 필수 변수는 즉시 에러 처리됩니다.
 
-- `prompts/layer_1/extraction.txt`
+- `prompts/layer_1/extraction/user.txt`
   - `{{claim}}`
-- `prompts/layer_1/relations.txt`
+- `prompts/layer_1/relations/user.txt`
   - `{{claim}}`, `{{elements_json}}`
-- `prompts/layer_2/expansion_base.txt`
+- `prompts/layer_2/expansion/user.txt`
   - `{{keyword}}`, `{{feedback_instruction}}`, `{{claim}}`, `{{elements_json}}`, `{{mode}}`
-- `prompts/layer_2/evaluation.txt`
+- `prompts/layer_2/evaluation/user.txt`
   - `{{keyword}}`, `{{claim}}`, `{{elements_json}}`, `{{mode}}`, `{{model_payload}}`
-- `prompts/layer_3/validation.txt`
+- `prompts/layer_2/context_filter/user.txt`
+  - `{{claim}}`, `{{elements_json}}`, `{{mode}}`, `{{keyword}}`, `{{synonyms_json}}`
+- `prompts/layer_3/validation/user.txt`
   - `{{claim}}`, `{{mode}}`, `{{synonyms_json}}`, `{{relations_json}}`
 
-> `expansion_base.txt`가 `{{feedback_instruction}}` 없이 `{{model_payload}}`만 포함하고 있다면, 오케스트레이터는 자동으로 내장 확장 프롬프트로 대체해 파이프라인을 유지합니다.
+> 참고: 레거시 단일 파일(`*.txt`)도 fallback 경로로 유지되지만, 신규 편집은 번들 디렉터리(`system/user/schema`) 기준을 권장합니다.
 
 ## 설정
 

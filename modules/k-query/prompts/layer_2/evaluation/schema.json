@@ -1,0 +1,11 @@
+﻿{
+  "required": ["keyword", "claim", "elements_json", "mode", "model_payload"],
+  "optional": {},
+  "types": {
+    "keyword": "text",
+    "claim": "text",
+    "elements_json": "json",
+    "mode": "text",
+    "model_payload": "json"
+  }
+}

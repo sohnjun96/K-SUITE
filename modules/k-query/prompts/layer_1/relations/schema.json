@@ -1,0 +1,8 @@
+﻿{
+  "required": ["claim", "elements_json"],
+  "optional": {},
+  "types": {
+    "claim": "text",
+    "elements_json": "json"
+  }
+}

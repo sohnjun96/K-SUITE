@@ -1,0 +1,7 @@
+﻿{
+  "required": ["claim"],
+  "optional": {},
+  "types": {
+    "claim": "text"
+  }
+}

@@ -1,6 +1,6 @@
 import { callOpenWebUI } from "./api_clients.js";
 import { FeedbackManager } from "./feedback_manager.js";
-import { loadPrompt, fillTemplate } from "./prompt_loader.js";
+import { loadPrompt, renderPromptPair } from "./prompt_loader.js";
 import { parseJsonFromText } from "./json_utils.js";
 import { buildQuery } from "./query_builder.js";
 import { basicValidate } from "./query_validator.js";
@@ -395,20 +395,17 @@ function parseSynonymList(text) {
 async function applyContextFilter({
   element,
   synonyms,
-  contextFilterTemplate,
   claim,
   elementsJson,
   mode,
   reportDev
 }) {
-  if (!contextFilterTemplate) return synonyms;
-
-  const prompt = fillTemplate(contextFilterTemplate, {
+  const promptPair = await renderPromptPair("layer2ContextFilter", {
     keyword: element.term,
     claim,
     elements_json: elementsJson,
     mode,
-    synonyms_json: JSON.stringify(synonyms)
+    synonyms_json: synonyms
   });
 
   reportDev({
@@ -416,12 +413,15 @@ async function applyContextFilter({
     stage: "request",
     label: `Context Filter: ${element.term}`,
     model: JUDGE_MODEL,
-    content: prompt
+    content: {
+      system: promptPair.system,
+      user: promptPair.user
+    }
   });
 
   try {
     const response = await callOpenWebUI(
-      [{ role: "user", content: prompt }],
+      promptPair.messages,
       JUDGE_MODEL,
       TEMPERATURES.evaluation
     );
@@ -513,9 +513,6 @@ function buildModelRoster() {
 async function requestExpansion(
   element,
   model,
-  expansionTemplate,
-  expansionHasModelPayload,
-  expansionHasFeedback,
   claim,
   elementsJson,
   mode,
@@ -523,36 +520,29 @@ async function requestExpansion(
 ) {
   const feedback = await FeedbackManager.getFeedback(model.name);
   const feedbackInstruction = feedback ? `Feedback: ${feedback}` : "No prior feedback.";
-  const prompt = fillTemplate(expansionTemplate, {
+  const promptPair = await renderPromptPair("layer2Expansion", {
     keyword: element.term,
     feedback_instruction: feedbackInstruction,
     claim,
     elements_json: elementsJson,
     mode,
-    model_payload: "[]"
+    model_payload: []
   });
-
-  if (expansionHasModelPayload && !expansionHasFeedback) {
-    reportDev({
-      layer: "Layer 2-A",
-      stage: "request",
-      label: "Expansion Prompt Fallback",
-      model: model.name,
-      content: "expansion_base.txt expects model_payload; using built-in expansion prompt."
-    });
-  }
 
   reportDev({
     layer: "Layer 2-A",
     stage: "request",
     label: `Expansion: ${element.term}`,
     model: model.name,
-    content: prompt
+    content: {
+      system: promptPair.system,
+      user: promptPair.user
+    }
   });
 
   try {
     const response = await callOpenWebUI(
-      [{ role: "user", content: prompt }],
+      promptPair.messages,
       model.name,
       TEMPERATURES.expansion
     );
@@ -593,11 +583,7 @@ async function requestExpansion(
 async function expandElement({
   element,
   modelRoster,
-  expansionTemplate,
-  expansionHasModelPayload,
-  expansionHasFeedback,
-  evaluationTemplate,
-  contextFilterTemplate,
+  hasContextFilterPrompt,
   claim,
   elementsJson,
   mode,
@@ -611,9 +597,6 @@ async function expandElement({
       requestExpansion(
         element,
         model,
-        expansionTemplate,
-        expansionHasModelPayload,
-        expansionHasFeedback,
         claim,
         elementsJson,
         mode,
@@ -652,12 +635,12 @@ async function expandElement({
   const responsiveModels = expansionResults.map((result) => result.model);
 
   if (responsiveModels.length > 1) {
-    const evalPrompt = fillTemplate(evaluationTemplate, {
+    const evalPromptPair = await renderPromptPair("layer2Evaluation", {
       keyword: element.term,
       claim,
       elements_json: elementsJson,
       mode,
-      model_payload: JSON.stringify(modelPayload)
+      model_payload: modelPayload
     });
 
     try {
@@ -666,10 +649,13 @@ async function expandElement({
         stage: "request",
         label: `Evaluation: ${element.term}`,
         model: JUDGE_MODEL,
-        content: evalPrompt
+        content: {
+          system: evalPromptPair.system,
+          user: evalPromptPair.user
+        }
       });
       const evaluationResponse = await callOpenWebUI(
-        [{ role: "user", content: evalPrompt }],
+        evalPromptPair.messages,
         JUDGE_MODEL,
         TEMPERATURES.evaluation
       );
@@ -705,12 +691,11 @@ async function expandElement({
     }
   }
 
-  if (contextFilterTemplate) {
+  if (hasContextFilterPrompt) {
     reportProgress(`Layer 2: context filtering '${element.term}'...`);
     bestSynonyms = await applyContextFilter({
       element,
       synonyms: bestSynonyms,
-      contextFilterTemplate,
       claim,
       elementsJson,
       mode,
@@ -745,16 +730,19 @@ export async function runPipeline(claimText, progressCallback = NOOP, options = 
 
   if (startLayer === "Layer 1") {
     reportProgress("Layer 1: extracting elements...");
-    const extractionPrompt = fillTemplate(await loadPrompt("layer1Extraction"), { claim });
+    const extractionPromptPair = await renderPromptPair("layer1Extraction", { claim });
     reportDev({
       layer: "Layer 1",
       stage: "request",
       label: "Keyword Extraction",
       model: ANALYST_MODEL,
-      content: extractionPrompt
+      content: {
+        system: extractionPromptPair.system,
+        user: extractionPromptPair.user
+      }
     });
     const extractionResponse = await callOpenWebUI(
-      [{ role: "user", content: extractionPrompt }],
+      extractionPromptPair.messages,
       ANALYST_MODEL,
       TEMPERATURES.analysis
     );
@@ -778,19 +766,22 @@ export async function runPipeline(claimText, progressCallback = NOOP, options = 
     reportProgress(`Mode: ${mode === MODE_STRUCTURE ? "구조" : "구성요소"} 우선`);
 
     reportProgress("Layer 1: mapping relations...");
-    const relationsPrompt = fillTemplate(await loadPrompt("layer1Relations"), {
+    const relationsPromptPair = await renderPromptPair("layer1Relations", {
       claim,
-      elements_json: JSON.stringify(elements)
+      elements_json: elements
     });
     reportDev({
       layer: "Layer 1",
       stage: "request",
       label: "Relation Mapping",
       model: ANALYST_MODEL,
-      content: relationsPrompt
+      content: {
+        system: relationsPromptPair.system,
+        user: relationsPromptPair.user
+      }
     });
     const relationsResponse = await callOpenWebUI(
-      [{ role: "user", content: relationsPrompt }],
+      relationsPromptPair.messages,
       ANALYST_MODEL,
       TEMPERATURES.analysis
     );
@@ -859,30 +850,19 @@ export async function runPipeline(claimText, progressCallback = NOOP, options = 
   } else {
     reportProgress("Layer 2: expanding synonyms...");
     const modelRoster = buildModelRoster();
-    const expansionTemplateRaw = await loadPrompt("layer2Expansion");
-    const evaluationTemplate = await loadPrompt("layer2Evaluation");
-    let contextFilterTemplate = null;
+    let hasContextFilterPrompt = true;
     try {
-      contextFilterTemplate = await loadPrompt("layer2ContextFilter");
+      await loadPrompt("layer2ContextFilter");
     } catch {
-      contextFilterTemplate = null;
+      hasContextFilterPrompt = false;
     }
-    const expansionHasModelPayload = expansionTemplateRaw.includes("{{model_payload}}");
-    const expansionHasFeedback = expansionTemplateRaw.includes("{{feedback_instruction}}");
-    const expansionTemplate = expansionHasModelPayload && !expansionHasFeedback
-      ? DEFAULT_EXPANSION_PROMPT
-      : expansionTemplateRaw;
 
     const expansionResults = await Promise.all(
       elements.map((element) =>
         expandElement({
           element,
           modelRoster,
-          expansionTemplate,
-          expansionHasModelPayload,
-          expansionHasFeedback,
-          evaluationTemplate,
-          contextFilterTemplate,
+          hasContextFilterPrompt,
           claim,
           elementsJson,
           mode,
@@ -924,21 +904,24 @@ export async function runPipeline(claimText, progressCallback = NOOP, options = 
     content: draftQuery
   });
 
-  const assemblyPrompt = fillTemplate(await loadPrompt("layer3Validation"), {
+  const assemblyPromptPair = await renderPromptPair("layer3Validation", {
     claim,
     mode,
-    synonyms_json: JSON.stringify({ elements, synonyms_by_id: synonymsById }),
-    relations_json: JSON.stringify(relations)
+    synonyms_json: { elements, synonyms_by_id: synonymsById },
+    relations_json: relations
   });
   reportDev({
     layer: "Layer 3",
     stage: "request",
     label: "Assembly",
     model: JUDGE_MODEL,
-    content: assemblyPrompt
+    content: {
+      system: assemblyPromptPair.system,
+      user: assemblyPromptPair.user
+    }
   });
   const assemblyResponse = await callOpenWebUI(
-    [{ role: "user", content: assemblyPrompt }],
+    assemblyPromptPair.messages,
     JUDGE_MODEL,
     TEMPERATURES.validation
   );

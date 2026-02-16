@@ -136,5 +136,5 @@ API 키는 K-SUITE 팝업에서 공통으로 저장되며, `chrome.storage.local
 
 ## 참고
 - 쿼리 조립은 가능한 한 **규칙 기반**으로 안정성을 유지하도록 설계됨
-- `expansion_base.txt`와 `evaluation.txt`는 역할이 달라야 품질이 향상됨
+- `prompts/layer_2/expansion/*`와 `prompts/layer_2/evaluation/*`는 역할이 달라야 품질이 향상됨
 - DB가 그룹 간 `<near/n>`을 지원하지 않으면 전개(expand) 모듈 추가가 필요

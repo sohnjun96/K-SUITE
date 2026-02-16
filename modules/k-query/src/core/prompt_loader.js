@@ -2,46 +2,34 @@ const PROMPT_BUNDLES = {
   layer1Extraction: {
     system: "modules/k-query/prompts/layer_1/extraction/system.txt",
     user: "modules/k-query/prompts/layer_1/extraction/user.txt",
-    schema: "modules/k-query/prompts/layer_1/extraction/schema.json",
-    legacyUser: "modules/k-query/prompts/layer_1/extraction.txt"
+    schema: "modules/k-query/prompts/layer_1/extraction/schema.json"
   },
   layer1Relations: {
     system: "modules/k-query/prompts/layer_1/relations/system.txt",
     user: "modules/k-query/prompts/layer_1/relations/user.txt",
-    schema: "modules/k-query/prompts/layer_1/relations/schema.json",
-    legacyUser: "modules/k-query/prompts/layer_1/relations.txt"
+    schema: "modules/k-query/prompts/layer_1/relations/schema.json"
   },
   layer2Expansion: {
     system: "modules/k-query/prompts/layer_2/expansion/system.txt",
     user: "modules/k-query/prompts/layer_2/expansion/user.txt",
-    schema: "modules/k-query/prompts/layer_2/expansion/schema.json",
-    legacyUser: "modules/k-query/prompts/layer_2/expansion_base.txt"
+    schema: "modules/k-query/prompts/layer_2/expansion/schema.json"
   },
   layer2Evaluation: {
     system: "modules/k-query/prompts/layer_2/evaluation/system.txt",
     user: "modules/k-query/prompts/layer_2/evaluation/user.txt",
-    schema: "modules/k-query/prompts/layer_2/evaluation/schema.json",
-    legacyUser: "modules/k-query/prompts/layer_2/evaluation.txt"
+    schema: "modules/k-query/prompts/layer_2/evaluation/schema.json"
   },
   layer2ContextFilter: {
     system: "modules/k-query/prompts/layer_2/context_filter/system.txt",
     user: "modules/k-query/prompts/layer_2/context_filter/user.txt",
-    schema: "modules/k-query/prompts/layer_2/context_filter/schema.json",
-    legacyUser: "modules/k-query/prompts/layer_2/context_filter.txt"
+    schema: "modules/k-query/prompts/layer_2/context_filter/schema.json"
   },
   layer3Validation: {
     system: "modules/k-query/prompts/layer_3/validation/system.txt",
     user: "modules/k-query/prompts/layer_3/validation/user.txt",
-    schema: "modules/k-query/prompts/layer_3/validation/schema.json",
-    legacyUser: "modules/k-query/prompts/layer_3/validation.txt"
+    schema: "modules/k-query/prompts/layer_3/validation/schema.json"
   }
 };
-
-const DEFAULT_SYSTEM_PROMPT = [
-  "You are a patent search assistant.",
-  "Follow the user instructions exactly.",
-  "Return JSON only when the user prompt requests JSON."
-].join("\n");
 
 const PLACEHOLDER_REGEX = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
 const textCache = new Map();
@@ -138,15 +126,12 @@ function fillTemplateStrict(promptText, variables, schema, promptKey, promptRole
   return rendered;
 }
 
-async function fetchText(path, { optional = false } = {}) {
+async function fetchText(path) {
   if (!path) return null;
   if (textCache.has(path)) return textCache.get(path);
 
   const response = await fetch(chrome.runtime.getURL(path));
   if (!response.ok) {
-    if (optional && response.status === 404) {
-      return null;
-    }
     throw new Error(`Failed to load prompt: ${path}`);
   }
 
@@ -174,9 +159,8 @@ export async function loadPromptBundle(key) {
   const bundle = PROMPT_BUNDLES[key];
   if (!bundle) throw new Error(`Unknown prompt key: ${key}`);
 
-  const systemPrompt = (await fetchText(bundle.system, { optional: true })) || DEFAULT_SYSTEM_PROMPT;
-  const userPrompt = (await fetchText(bundle.user, { optional: true }))
-    || (await fetchText(bundle.legacyUser));
+  const systemPrompt = await fetchText(bundle.system);
+  const userPrompt = await fetchText(bundle.user);
   const schema = normalizeSchema(await fetchSchema(bundle.schema), systemPrompt, userPrompt);
 
   return { key, systemPrompt, userPrompt, schema };

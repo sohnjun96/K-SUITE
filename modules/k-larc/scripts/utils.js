@@ -73,67 +73,53 @@ const LARC_PROMPT_BUNDLES = Object.freeze({
   chat: {
     system: 'prompts/chat/system.txt',
     user: 'prompts/chat/user.txt',
-    schema: 'prompts/chat/schema.json',
-    legacySystem: 'prompts/chat_prompt.txt'
+    schema: 'prompts/chat/schema.json'
   },
   stepAFeatures: {
     system: 'prompts/step_a_features/system.txt',
     user: 'prompts/step_a_features/user.txt',
-    schema: 'prompts/step_a_features/schema.json',
-    legacySystem: 'prompts/stepA_features_prompt.txt'
+    schema: 'prompts/step_a_features/schema.json'
   },
   stepQuickAnalysis: {
     system: 'prompts/step_quick_analysis/system.txt',
     user: 'prompts/step_quick_analysis/user.txt',
-    schema: 'prompts/step_quick_analysis/schema.json',
-    legacySystem: 'prompts/stepQuick_analysis_prompt.txt'
+    schema: 'prompts/step_quick_analysis/schema.json'
   },
   stepBQuery: {
     system: 'prompts/step_b_query/system.txt',
     user: 'prompts/step_b_query/user.txt',
-    schema: 'prompts/step_b_query/schema.json',
-    legacySystem: 'prompts/stepB_query_prompt.txt'
+    schema: 'prompts/step_b_query/schema.json'
   },
   stepBMerge: {
     system: 'prompts/step_b_merge/system.txt',
     user: 'prompts/step_b_merge/user.txt',
-    schema: 'prompts/step_b_merge/schema.json',
-    legacySystem: 'prompts/stepB_merge_prompt.txt'
+    schema: 'prompts/step_b_merge/schema.json'
   },
   stepBRag: {
     system: 'prompts/step_b_rag/system.txt',
     user: 'prompts/step_b_rag/user.txt',
-    schema: 'prompts/step_b_rag/schema.json',
-    legacySystem: 'prompts/stepB_rag_prompt.txt'
+    schema: 'prompts/step_b_rag/schema.json'
   },
   stepCMultiJudge: {
     system: 'prompts/step_c_multijudge/system.txt',
     user: 'prompts/step_c_multijudge/user.txt',
-    schema: 'prompts/step_c_multijudge/schema.json',
-    legacySystem: 'prompts/stepC_multijudge_prompt.txt'
+    schema: 'prompts/step_c_multijudge/schema.json'
   },
   stepDRepair: {
     system: 'prompts/step_d_repair/system.txt',
     user: 'prompts/step_d_repair/user.txt',
-    schema: 'prompts/step_d_repair/schema.json',
-    legacySystem: 'prompts/stepD_repair_prompt.txt'
+    schema: 'prompts/step_d_repair/schema.json'
   },
   verification: {
     system: 'prompts/verification/system.txt',
     user: 'prompts/verification/user.txt',
-    schema: 'prompts/verification/schema.json',
-    legacySystem: 'prompts/verification_prompt.txt'
+    schema: 'prompts/verification/schema.json'
   }
 });
 
 const LARC_PROMPT_PLACEHOLDER_REGEX = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
 const larcPromptTextCache = new Map();
 const larcPromptSchemaCache = new Map();
-const DEFAULT_LARC_SYSTEM_PROMPT = [
-  'You are a patent analysis assistant.',
-  'Follow the user instructions exactly.',
-  'Return JSON only when requested by the user template.'
-].join('\n');
 
 function hasOwn(source, key) {
   return Object.prototype.hasOwnProperty.call(source, key);
@@ -222,13 +208,12 @@ function fillPromptTemplateStrict(template, variables, schema, promptKey, role) 
   return rendered;
 }
 
-async function loadPromptText(path, { optional = false } = {}) {
+async function loadPromptText(path) {
   if (!path) return null;
   if (larcPromptTextCache.has(path)) return larcPromptTextCache.get(path);
 
   const response = await fetch(path);
   if (!response.ok) {
-    if (optional && response.status === 404) return null;
     throw new Error(`Failed to load prompt text: ${path}`);
   }
 
@@ -256,10 +241,8 @@ async function renderLarcPromptPair(promptKey, variables) {
   const bundle = LARC_PROMPT_BUNDLES[promptKey];
   if (!bundle) throw new Error(`Unknown prompt key: ${promptKey}`);
 
-  const systemTemplate = (await loadPromptText(bundle.system, { optional: true }))
-    || (await loadPromptText(bundle.legacySystem, { optional: true }))
-    || DEFAULT_LARC_SYSTEM_PROMPT;
-  const userTemplate = (await loadPromptText(bundle.user, { optional: true })) || '{{user_text}}';
+  const systemTemplate = await loadPromptText(bundle.system);
+  const userTemplate = await loadPromptText(bundle.user);
   const schema = normalizePromptSchema(await loadPromptSchema(bundle.schema), systemTemplate, userTemplate);
   const resolvedVariables = resolvePromptVariables(schema, variables, promptKey);
 

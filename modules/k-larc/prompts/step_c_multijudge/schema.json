@@ -1,11 +1,22 @@
 {
-  "required": ["claim_id", "claim_name", "claim_text", "claim_features_json", "stepb_merged_relevant_json"],
-  "optional": {},
+  "required": [
+    "claim_id",
+    "claim_name",
+    "claim_text",
+    "claim_features_json",
+    "stepb_merged_relevant_json"
+  ],
+  "optional": {
+    "output_language": "ko",
+    "strict_mode": true
+  },
   "types": {
     "claim_id": "text",
     "claim_name": "text",
     "claim_text": "text",
     "claim_features_json": "json",
-    "stepb_merged_relevant_json": "json"
+    "stepb_merged_relevant_json": "json",
+    "output_language": "text",
+    "strict_mode": "boolean"
   }
 }

@@ -1,6 +1,7 @@
 (function initKSuiteSharedConstants(globalScope) {
   const DEFAULT_WEBUI_BASE_URL = "http://10.133.111.32:8080";
   const FALLBACK_SIDEPANEL_HOST_URL = "https://example.com/";
+  const DEFAULT_LLM_MODEL = "gpt-oss-120b";
 
   const MESSAGE_TYPES = Object.freeze({
     LAUNCH_MODULE: "LAUNCH_MODULE"
@@ -88,6 +89,10 @@
 
   if (!globalScope.KSUITE_DEFAULT_WEBUI_BASE_URL) {
     globalScope.KSUITE_DEFAULT_WEBUI_BASE_URL = DEFAULT_WEBUI_BASE_URL;
+  }
+
+  if (!globalScope.KSUITE_DEFAULT_LLM_MODEL) {
+    globalScope.KSUITE_DEFAULT_LLM_MODEL = DEFAULT_LLM_MODEL;
   }
 
   if (!globalScope.KSUITE_FALLBACK_SIDEPANEL_HOST_URL) {

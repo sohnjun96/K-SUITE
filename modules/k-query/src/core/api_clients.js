@@ -1,3 +1,5 @@
+import { ANALYST_MODEL } from "./model_config.js";
+
 const DEFAULT_WEBUI_BASE_URL = "http://10.133.111.32:8080";
 const CHAT_COMPLETIONS_PATH = "/api/chat/completions";
 
@@ -10,7 +12,7 @@ async function resolveServerUrl() {
   return `${baseUrl}${CHAT_COMPLETIONS_PATH}`;
 }
 
-export async function callOpenWebUI(messages, modelName = "gpt-oss-120b", temperature = 0.7) {
+export async function callOpenWebUI(messages, modelName = ANALYST_MODEL, temperature = 0.7) {
   const data = await chrome.storage.local.get("ksuiteSharedApiKey");
   const apiKey = String(data.ksuiteSharedApiKey || "").trim();
 

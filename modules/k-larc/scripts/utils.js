@@ -166,6 +166,14 @@ function formatPromptValue(value, type) {
   if (!hasPromptValue(value)) return '';
   const normalizedType = String(type || 'text').trim().toLowerCase();
 
+  if (normalizedType === 'boolean' || normalizedType === 'bool') {
+    if (typeof value === 'string') {
+      const lowered = value.trim().toLowerCase();
+      if (lowered === 'true' || lowered === 'false') return lowered;
+    }
+    return value ? 'true' : 'false';
+  }
+
   if (normalizedType === 'json') {
     if (typeof value === 'string') return value;
     return JSON.stringify(value, null, 2);
@@ -259,6 +267,16 @@ async function renderLarcPromptPair(promptKey, variables) {
   };
 }
 
+function resolveLarcModelName() {
+  const configuredModel = String(settings?.model || '').trim();
+  if (configuredModel) return configuredModel;
+
+  const sharedDefaultModel = String(globalThis.KSUITE_DEFAULT_LLM_MODEL || '').trim();
+  if (sharedDefaultModel) return sharedDefaultModel;
+
+  throw new Error('No default model is configured. Set KSUITE_DEFAULT_LLM_MODEL in shared constants.');
+}
+
 async function sendLLMRequest(payload) {
   if (settings.mockMode) {
     return await buildMockLLMResponse(payload);
@@ -302,7 +320,7 @@ function extractBetween(text, startMarker, endMarker) {
   return normalizedText.slice(from, endIndex).trim();
 }
 
-const MOCK_DOC_FIXTURE_KEYS = ['D1', 'D2', 'D3'];
+const MOCK_DOC_FIXTURE_KEYS = ['D1', 'D2', 'D3', 'D4', 'D5'];
 const MOCK_PARAGRAPH_KEYS = ['[0010]', '[0012]', '[0015]', '[0020]', '[0024]', '[0030]', '[0035]', '[0040]'];
 const MOCK_FEATURE_TEMPLATES = [
   'A sensor module measures an external input signal and outputs sampling data.',
@@ -312,25 +330,52 @@ const MOCK_FEATURE_TEMPLATES = [
   'A control unit adjusts an actuator according to the classification result.',
   'A feedback loop updates control parameters based on a measured output response.'
 ];
+const MOCK_CLAIM_FIXTURES = [
+  [
+    'A system includes a sensor module, preprocessing unit, feature extractor, and decision unit.',
+    'The control unit drives an actuator based on a classification result.',
+    'A feedback loop updates control parameters using measured output response.'
+  ].join(' '),
+  [
+    'A diagnostic apparatus receives vibration and temperature signals from rotating equipment.',
+    'A fusion model estimates a fault score and outputs a maintenance trigger when a threshold is exceeded.',
+    'The trigger is corrected by confidence calibration using historical operation profiles.'
+  ].join(' '),
+  [
+    'A vision pipeline captures an image stream and detects a target region with a lightweight detector.',
+    'A tracking block predicts motion vectors and smooths jitter using temporal filtering.',
+    'A control command is generated for autonomous alignment based on the tracked target position.'
+  ].join(' '),
+  [
+    'A network security gateway extracts packet metadata and behavioral signatures in real time.',
+    'A policy engine assigns risk levels using anomaly and rule-based hybrid scoring.',
+    'An adaptive response controller updates blocking policies according to verified incident feedback.'
+  ].join(' ')
+];
 
 function getMockDocNameByIndex(index) {
   const safeIndex = Number.isFinite(index) ? Math.max(0, index) : 0;
   return MOCK_DOC_FIXTURE_KEYS[safeIndex % MOCK_DOC_FIXTURE_KEYS.length];
 }
 
+function getMockClaimFixtures() {
+  return [...MOCK_CLAIM_FIXTURES];
+}
+
 function getMockDefaultClaimText() {
-  return [
-    'A system includes a sensor module, preprocessing unit, feature extractor, and decision unit.',
-    'The control unit drives an actuator based on a classification result.',
-    'A feedback loop updates control parameters using measured output response.'
-  ].join(' ');
+  return MOCK_CLAIM_FIXTURES[0];
 }
 
 function buildMockParagraphMap(docName) {
   const doc = String(docName || 'D1').trim() || 'D1';
-  const variant = doc === 'D1' ? 'baseline architecture'
-    : doc === 'D2' ? 'equivalent control flow'
-      : 'implementation-level refinement';
+  const variantByDoc = {
+    D1: 'baseline architecture',
+    D2: 'equivalent control flow',
+    D3: 'implementation-level refinement',
+    D4: 'safety-oriented fallback strategy',
+    D5: 'multi-sensor redundancy scheme'
+  };
+  const variant = variantByDoc[doc] || 'implementation-level refinement';
 
   return {
     '[0010]': `${doc} describes a ${variant} with sensor sampling and preprocessing steps.`,
@@ -422,7 +467,7 @@ function buildMockRelevant(features, labelSuffix) {
   return relevant;
 }
 
-// Mock dataset override: richer demo with 6 features, 3 docs, and paragraph positions.
+// Mock dataset override: richer demo with 6 features, up to 5 docs, and paragraph positions.
 function getMockDocNames() {
   const docs = citations
     .filter(c => c.status === 'completed')
@@ -437,7 +482,7 @@ function getMockDocNames() {
     if (!unique.includes(normalized)) unique.push(normalized);
   });
 
-  return unique.slice(0, 3);
+  return unique.slice(0, 5);
 }
 
 function buildMockClaimFeatures(claimText) {
@@ -649,8 +694,13 @@ async function buildMockLLMResponse(payload) {
       return mockResponseFromObject({ verifications });
     }
 
-    if (/^\[Claim ID:/.test(userMessage)) {
-      const claimText = userMessage.split('\n').slice(1).join('\n').trim();
+    if (userMessage.includes('[Claim ID:')) {
+      const claimMarkerMatch = userMessage.match(/\[Claim ID:\s*([^\]]+)\]/);
+      const claimMarker = claimMarkerMatch?.[0] || '';
+      const markerIndex = claimMarker ? userMessage.indexOf(claimMarker) : -1;
+      const claimText = markerIndex >= 0
+        ? userMessage.slice(markerIndex + claimMarker.length).trim()
+        : userMessage.split('\n').slice(1).join('\n').trim();
       return mockResponseFromObject({ ClaimFeatures: buildMockClaimFeatures(claimText) });
     }
 

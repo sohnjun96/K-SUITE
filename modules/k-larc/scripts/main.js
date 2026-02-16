@@ -126,7 +126,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('result-tbody').addEventListener('click', (e) => {
     const positionToken = e.target.closest('.position-token');
     if (positionToken) {
-      openPositionModal(positionToken.dataset.docName, positionToken.dataset.paragraphKey);
+      openPositionModal(
+        positionToken.dataset.docName,
+        positionToken.dataset.paragraphKey,
+        positionToken.dataset.relatedContent || ''
+      );
       return;
     }
 

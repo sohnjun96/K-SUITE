@@ -1,6 +1,9 @@
 const DEFAULT_WEBUI_BASE_URL = "http://10.133.111.32:8080";
 const CHAT_COMPLETIONS_PATH = "/api/chat/completions";
-const MODEL_NAME = "gpt-oss-120b";
+const MODEL_NAME = String(globalThis.KSUITE_DEFAULT_LLM_MODEL || "").trim();
+if (!MODEL_NAME) {
+  throw new Error("K-SUITE default model is not initialized.");
+}
 const HISTORY_KEY = "bp_history_v1";
 
 let resultWindowId = null;

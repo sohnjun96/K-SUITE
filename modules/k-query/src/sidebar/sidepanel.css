@@ -1049,6 +1049,40 @@ input[type="range"]:disabled {
   font-weight: 700;
 }
 
+.editor-controls {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: rgba(54, 54, 39, 0.82);
+}
+
+.editor-toggle input {
+  margin: 0;
+  accent-color: var(--royal-600);
+}
+
+.editor-toggle-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(23, 102, 255, 0.12);
+  color: var(--royal-700);
+}
+
 .editor-note {
   margin-top: 10px;
   font-size: 11px;

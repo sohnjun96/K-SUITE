@@ -510,6 +510,509 @@ function buildModelRoster() {
   });
 }
 
+const MOCK_SCENARIO_FIXTURES = [
+  {
+    id: "display_bending_device",
+    title: "Flexible Display Bending Device",
+    mode: MODE_STRUCTURE,
+    hints: ["display", "flexible", "bend", "bending", "sensor", "디스플레이", "플렉서블", "벤딩"],
+    elements: [
+      { id: "A", term: "flexible display panel", type: "compound", parts: ["display", "panel"] },
+      { id: "B", term: "bending sensing strip", type: "compound", parts: ["bending", "strip"] },
+      { id: "C", term: "strain signal converter", type: "compound", parts: ["strain", "converter"] },
+      { id: "D", term: "deformation compensation logic", type: "compound", parts: ["deformation", "logic"] },
+      { id: "E", term: "touch response stabilizer", type: "compound", parts: ["touch", "stabilizer"] }
+    ],
+    relations: [
+      { source: "A", target: "B", distance: "close", near: 3 },
+      { source: "B", target: "C", distance: "close", near: 4 },
+      { source: "C", target: "D", distance: "close", near: 4 },
+      { source: "D", target: "E", distance: "co-exist" }
+    ],
+    synonymsById: {
+      A: ["bendable display panel", "flex display substrate", { term: "flexible screen panel", match: "token" }],
+      B: ["bending detector strip", "curvature sensing line", { term: "bend sensing strip", match: "token" }],
+      C: ["strain conversion circuit", "deformation signal converter", { term: "strain converter", match: "token" }],
+      D: ["deformation correction logic", "shape compensation controller", { term: "compensation logic", match: "token" }],
+      E: ["touch stability controller", "response stabilizing module", { term: "touch stabilizer", match: "token" }]
+    }
+  },
+  {
+    id: "ev_thermal_pack",
+    title: "EV Battery Thermal Pack",
+    mode: MODE_STRUCTURE,
+    hints: ["battery", "thermal", "coolant", "cell", "pack", "전지", "배터리", "냉각"],
+    elements: [
+      { id: "A", term: "battery cell cluster", type: "compound", parts: ["battery", "cell"] },
+      { id: "B", term: "coolant circulation channel", type: "compound", parts: ["coolant", "channel"] },
+      { id: "C", term: "thermal control valve", type: "compound", parts: ["thermal", "valve"] },
+      { id: "D", term: "temperature sensing node", type: "compound", parts: ["temperature", "node"] },
+      { id: "E", term: "fault mitigation controller", type: "compound", parts: ["fault", "controller"] }
+    ],
+    relations: [
+      { source: "A", target: "B", distance: "close", near: 3 },
+      { source: "B", target: "C", distance: "close", near: 4 },
+      { source: "C", target: "D", distance: "close", near: 4 },
+      { source: "D", target: "E", distance: "co-exist" }
+    ],
+    synonymsById: {
+      A: ["battery module cluster", "cell array", { term: "battery-cell set", match: "phrase" }],
+      B: ["cooling flow channel", "refrigerant passage", { term: "coolant loop", match: "token" }],
+      C: ["heat control valve", "thermal regulation valve", { term: "temperature valve", match: "token" }],
+      D: ["thermal sensing point", "temperature monitor node", { term: "sensor node", match: "token" }],
+      E: ["protection control logic", "fault response controller", { term: "mitigation unit", match: "token" }]
+    }
+  },
+  {
+    id: "vision_inspection_line",
+    title: "Inline Vision Inspection",
+    mode: MODE_COMPONENT,
+    hints: ["vision", "camera", "inspection", "defect", "wafer", "이미지", "검사", "불량"],
+    elements: [
+      { id: "A", term: "line scan camera", type: "compound", parts: ["line", "camera"] },
+      { id: "B", term: "illumination adjustment stage", type: "compound", parts: ["illumination", "stage"] },
+      { id: "C", term: "defect feature extractor", type: "compound", parts: ["defect", "extractor"] },
+      { id: "D", term: "classification inference engine", type: "compound", parts: ["classification", "engine"] },
+      { id: "E", term: "reject gate actuator", type: "compound", parts: ["reject", "actuator"] }
+    ],
+    relations: [
+      { source: "A", target: "B", distance: "co-exist" },
+      { source: "A", target: "C", distance: "close", near: 5 },
+      { source: "C", target: "D", distance: "close", near: 5 },
+      { source: "D", target: "E", distance: "close", near: 6 }
+    ],
+    synonymsById: {
+      A: ["inspection camera", "line imaging sensor", { term: "scan camera", match: "token" }],
+      B: ["lighting control stage", "illumination tuner", { term: "light adjustment", match: "token" }],
+      C: ["defect pattern extractor", "anomaly feature parser", { term: "feature extractor", match: "token" }],
+      D: ["classification model runner", "inference classifier", { term: "decision engine", match: "token" }],
+      E: ["reject diverter", "sorting gate actuator", { term: "eject gate", match: "token" }]
+    }
+  },
+  {
+    id: "robot_path_control",
+    title: "Factory Robot Path Control",
+    mode: MODE_STRUCTURE,
+    hints: ["robot", "path", "trajectory", "factory", "arm", "로봇", "경로", "궤적"],
+    elements: [
+      { id: "A", term: "joint position sensor", type: "compound", parts: ["joint", "sensor"] },
+      { id: "B", term: "trajectory planning unit", type: "compound", parts: ["trajectory", "planning"] },
+      { id: "C", term: "collision prediction model", type: "compound", parts: ["collision", "model"] },
+      { id: "D", term: "motion command scheduler", type: "compound", parts: ["motion", "scheduler"] },
+      { id: "E", term: "servo feedback controller", type: "compound", parts: ["servo", "controller"] }
+    ],
+    relations: [
+      { source: "A", target: "B", distance: "close", near: 3 },
+      { source: "B", target: "C", distance: "close", near: 4 },
+      { source: "C", target: "D", distance: "close", near: 4 },
+      { source: "D", target: "E", distance: "close", near: 5 }
+    ],
+    synonymsById: {
+      A: ["joint angle sensor", "axis position detector", { term: "position sensing", match: "token" }],
+      B: ["path planning unit", "trajectory generator", { term: "motion planner", match: "token" }],
+      C: ["collision estimator", "interference prediction model", { term: "collision predictor", match: "token" }],
+      D: ["command dispatch scheduler", "motion task sequencer", { term: "motion scheduler", match: "token" }],
+      E: ["servo control loop", "feedback drive controller", { term: "servo regulator", match: "token" }]
+    }
+  },
+  {
+    id: "medical_signal_triage",
+    title: "Medical Signal Triage",
+    mode: MODE_COMPONENT,
+    hints: ["patient", "signal", "ecg", "triage", "diagnosis", "의료", "환자", "진단"],
+    elements: [
+      { id: "A", term: "biosignal acquisition channel", type: "compound", parts: ["biosignal", "channel"] },
+      { id: "B", term: "artifact suppression filter", type: "compound", parts: ["artifact", "filter"] },
+      { id: "C", term: "event detection network", type: "compound", parts: ["event", "network"] },
+      { id: "D", term: "risk scoring module", type: "compound", parts: ["risk", "scoring"] },
+      { id: "E", term: "clinical alert dispatcher", type: "compound", parts: ["clinical", "dispatcher"] }
+    ],
+    relations: [
+      { source: "A", target: "B", distance: "close", near: 4 },
+      { source: "B", target: "C", distance: "close", near: 5 },
+      { source: "C", target: "D", distance: "co-exist" },
+      { source: "D", target: "E", distance: "close", near: 5 }
+    ],
+    synonymsById: {
+      A: ["vital signal input", "biosignal stream channel", { term: "signal acquisition", match: "token" }],
+      B: ["noise suppression filter", "artifact removal filter", { term: "signal denoiser", match: "token" }],
+      C: ["event recognition network", "abnormality detection model", { term: "event detector", match: "token" }],
+      D: ["risk assessment scorer", "severity scoring logic", { term: "risk score module", match: "token" }],
+      E: ["alert notification dispatcher", "clinical alarm sender", { term: "alert router", match: "token" }]
+    }
+  }
+];
+
+const MOCK_ELEMENT_FALLBACKS = [
+  "signal input module",
+  "feature extraction unit",
+  "decision logic block",
+  "control output module",
+  "feedback update unit"
+];
+
+function findMockScenarioFromClaim(claim) {
+  const text = String(claim || "").trim().toLowerCase();
+  if (!text) return MOCK_SCENARIO_FIXTURES[0];
+  let bestScenario = null;
+  let bestScore = 0;
+
+  for (const scenario of MOCK_SCENARIO_FIXTURES) {
+    const hints = Array.isArray(scenario.hints) ? scenario.hints : [];
+    let score = 0;
+    for (const hint of hints) {
+      if (hint && text.includes(String(hint).toLowerCase())) score += 1;
+    }
+    if (score > bestScore) {
+      bestScenario = scenario;
+      bestScore = score;
+    }
+  }
+
+  return bestScenario || MOCK_SCENARIO_FIXTURES[0];
+}
+
+function inferMockModeFromClaim(claim) {
+  const text = String(claim || "").toLowerCase();
+  const structureHints = [
+    "relation",
+    "relational",
+    "link",
+    "linked",
+    "connect",
+    "connected",
+    "flow",
+    "sequence",
+    "between",
+    "near",
+    "\uC5F0\uACB0",
+    "\uAD6C\uC870",
+    "\uAD00\uACC4",
+    "\uBC30\uCE58",
+    "\uC778\uC811"
+  ];
+  if (structureHints.some((hint) => text.includes(hint))) return MODE_STRUCTURE;
+  return MODE_COMPONENT;
+}
+
+function buildMockElementsFromClaim(claim) {
+  const text = String(claim || "").trim();
+  const chunks = text
+    .split(/[.;\n]/g)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.length >= 4);
+
+  const candidates = [];
+  chunks.forEach((chunk) => {
+    const normalized = chunk
+      .replace(/[(){}[\]"]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!normalized) return;
+    const words = normalized.split(" ").filter(Boolean);
+    const phrase = words.slice(0, 4).join(" ").trim();
+    if (!phrase) return;
+    if (!candidates.includes(phrase)) candidates.push(phrase);
+  });
+
+  let fallbackIndex = 0;
+  while (candidates.length < 5) {
+    const fallback = MOCK_ELEMENT_FALLBACKS[fallbackIndex % MOCK_ELEMENT_FALLBACKS.length];
+    if (!candidates.includes(fallback)) candidates.push(fallback);
+    fallbackIndex += 1;
+  }
+
+  const raw = candidates.slice(0, 5).map((term, index) => {
+    const parts = term.split(/\s+/).filter(Boolean);
+    return {
+      id: String.fromCharCode(65 + index),
+      term,
+      type: parts.length >= 2 ? "compound" : "single",
+      parts: parts.length >= 2 ? parts.slice(0, 2) : undefined
+    };
+  });
+
+  return normalizeElements({ elements: raw });
+}
+
+function buildMockElementsFromScenario(scenario) {
+  if (!scenario || !Array.isArray(scenario.elements)) return [];
+  return normalizeElements({ elements: scenario.elements });
+}
+
+function buildMockRelations(elements, mode) {
+  const distanceNear = mode === MODE_STRUCTURE ? 4 : 6;
+  const rawRelations = [];
+
+  for (let i = 0; i < elements.length - 1; i += 1) {
+    rawRelations.push({
+      source: elements[i].id,
+      target: elements[i + 1].id,
+      distance: "close",
+      near: distanceNear
+    });
+  }
+
+  if (elements.length >= 3) {
+    rawRelations.push({
+      source: elements[0].id,
+      target: elements[2].id,
+      distance: "co-exist"
+    });
+  }
+
+  return normalizeRelations({ relations: rawRelations }, elements);
+}
+
+function buildMockRelationsFromScenario(elements, scenario) {
+  if (!scenario || !Array.isArray(scenario.relations)) {
+    return buildMockRelations(elements, scenario?.mode || MODE_COMPONENT);
+  }
+  return normalizeRelations({ relations: scenario.relations }, elements);
+}
+
+function buildMockSynonymItems(element, mode) {
+  const term = String(element?.term || "").trim();
+  if (!term) return [];
+
+  const baseParts = Array.isArray(element?.parts) ? element.parts.filter(Boolean) : [];
+  const compactTerm = term.replace(/\s+/g, " ").trim();
+  const tokenParts = compactTerm.split(/\s+/).filter(Boolean);
+  const tokenPrefix = tokenParts.slice(0, 2).join(" ");
+  const modeSuffix = mode === MODE_STRUCTURE ? "linkage" : "operation";
+
+  const rawItems = [
+    { term: compactTerm },
+    { term: `${compactTerm} module`, match: "token" },
+    { term: `${compactTerm} unit`, match: "token" },
+    { term: `${compactTerm} ${modeSuffix}`, match: "phrase" }
+  ];
+
+  if (baseParts.length > 0) {
+    rawItems.push({
+      term: compactTerm,
+      parts: baseParts,
+      match: "token"
+    });
+  }
+
+  if (tokenPrefix && tokenPrefix !== compactTerm) {
+    rawItems.push({ term: tokenPrefix, match: "token" });
+  }
+
+  const normalized = normalizeSynonymItems(rawItems);
+  const deduped = [];
+  const seen = new Set();
+  normalized.forEach((item) => {
+    const key = normalizeTermKey(item.term);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    deduped.push(item);
+  });
+  return deduped;
+}
+
+function normalizeScenarioSynonyms(elements, providedSynonyms) {
+  if (!providedSynonyms || typeof providedSynonyms !== "object") return {};
+  const byId = new Map(elements.map((element) => [element.id, element]));
+  const byKey = new Map(elements.map((element) => [normalizeTermKey(element.term), element]));
+  const normalized = {};
+
+  Object.entries(providedSynonyms).forEach(([key, value]) => {
+    const idKey = String(key || "").trim();
+    let target = byId.get(idKey);
+    if (!target) target = byKey.get(normalizeTermKey(idKey));
+    if (!target) return;
+    normalized[target.id] = normalizeSynonymItems(value);
+  });
+
+  return normalized;
+}
+
+function buildMockSynonymsById(elements, mode, providedSynonyms = null) {
+  const normalizedProvided = normalizeScenarioSynonyms(elements, providedSynonyms);
+  const synonymsById = {};
+  elements.forEach((element) => {
+    const providedItems = normalizedProvided[element.id] || [];
+    const generatedItems = buildMockSynonymItems(element, mode);
+    const rawItems = providedItems.length > 0
+      ? [...providedItems, ...generatedItems]
+      : generatedItems;
+    const filtered = filterGenericSynonyms(rawItems, element);
+    const withBase = ensureBaseTerm(filtered, element);
+    synonymsById[element.id] = limitSynonymList(withBase, element, MAX_SYNONYMS);
+  });
+  return synonymsById;
+}
+
+function normalizeProvidedSynonyms(elements, providedSynonyms) {
+  const synonymsById = {};
+  elements.forEach((element) => {
+    const rawList = providedSynonyms?.[element.id] || providedSynonyms?.[element.term] || [];
+    const normalized = normalizeSynonymItems(rawList);
+    synonymsById[element.id] = ensureBaseTerm(normalized, element);
+  });
+  return synonymsById;
+}
+
+async function runMockPipeline({
+  claim,
+  options,
+  safeReport,
+  reportProgress,
+  reportDev
+}) {
+  const scenario = findMockScenarioFromClaim(claim);
+  reportProgress("Mock mode: local pipeline enabled.");
+  reportDev({
+    layer: "Mock",
+    stage: "decision",
+    label: "Mock Mode",
+    model: "mock-local",
+    content: { enabled: true, startLayer: options?.startLayer || "Layer 1" }
+  });
+  reportDev({
+    layer: "Mock",
+    stage: "decision",
+    label: "Mock Dataset",
+    model: "mock-local",
+    content: { id: scenario.id, title: scenario.title }
+  });
+  reportProgress(`Mock dataset: ${scenario.title}`);
+
+  const startLayer = normalizeStartLayer(options?.startLayer);
+  let elements = [];
+  let relations = [];
+  let mode = null;
+
+  if (startLayer === "Layer 1") {
+    reportProgress("Layer 1: extracting elements...");
+    mode = scenario.mode || inferMockModeFromClaim(claim);
+    elements = buildMockElementsFromScenario(scenario);
+    if (elements.length === 0) {
+      elements = buildMockElementsFromClaim(claim);
+    }
+    if (elements.length === 0) {
+      throw new Error("No elements were extracted from the claim.");
+    }
+    reportDev({
+      layer: "Layer 1",
+      stage: "response",
+      label: "Keyword Extraction",
+      model: "mock-local",
+      content: { mode, elements }
+    });
+
+    reportProgress(`Mode: ${mode === MODE_STRUCTURE ? "structure" : "component"} priority`);
+    reportDev({
+      layer: "Layer 1",
+      stage: "decision",
+      label: "Pipeline Mode",
+      model: "mock-local",
+      content: { mode, raw: mode }
+    });
+    reportProgress("Layer 1: mapping relations...");
+    relations = buildMockRelationsFromScenario(elements, scenario);
+    reportDev({
+      layer: "Layer 1",
+      stage: "response",
+      label: "Relation Mapping",
+      model: "mock-local",
+      content: { relations }
+    });
+  } else {
+    elements = normalizeElements(options?.elements);
+    if (elements.length === 0) {
+      throw new Error("Elements are required for rerun starting at Layer 2/3.");
+    }
+    relations = normalizeRelations(options?.relations, elements);
+    mode = normalizeMode(options?.mode);
+    reportProgress("Layer 1: using cached elements & relations");
+    reportProgress(`Mode: ${mode === MODE_STRUCTURE ? "structure" : "component"} priority`);
+    reportDev({
+      layer: "Layer 1",
+      stage: "decision",
+      label: "Pipeline Mode",
+      model: "mock-local",
+      content: { mode, raw: mode }
+    });
+    reportDev({
+      layer: "Layer 1",
+      stage: "reuse",
+      label: "Cached Elements",
+      model: "mock-local",
+      content: elements
+    });
+    reportDev({
+      layer: "Layer 1",
+      stage: "reuse",
+      label: "Cached Relations",
+      model: "mock-local",
+      content: relations
+    });
+  }
+
+  let synonymsById = {};
+  if (startLayer === "Layer 3") {
+    reportProgress("Layer 2: using cached synonyms...");
+    if (!options?.synonymsById || typeof options.synonymsById !== "object") {
+      throw new Error("Synonyms are required for rerun starting at Layer 3.");
+    }
+    synonymsById = normalizeProvidedSynonyms(elements, options.synonymsById);
+    reportDev({
+      layer: "Layer 2",
+      stage: "reuse",
+      label: "Cached Synonyms",
+      model: "mock-local",
+      content: synonymsById
+    });
+  } else {
+    reportProgress("Layer 2: expanding synonyms...");
+    synonymsById = buildMockSynonymsById(elements, mode, scenario.synonymsById);
+    elements.forEach((element) => {
+      reportDev({
+        layer: "Layer 2-A",
+        stage: "response",
+        label: `Expansion: ${element.term}`,
+        model: "mock-local",
+        content: synonymsById[element.id] || []
+      });
+    });
+  }
+
+  safeReport({
+    type: "artifact",
+    payload: {
+      elements,
+      relations,
+      synonymsById,
+      mode
+    }
+  });
+
+  reportProgress("Layer 3: assembling query...");
+  const draftQuery = buildQuery({
+    elements,
+    relations,
+    synonymsById,
+    nearDistance: DEFAULT_NEAR_DISTANCE
+  });
+
+  reportDev({
+    layer: "Layer 3",
+    stage: "assembly",
+    label: "Fallback Draft",
+    model: "mock-local",
+    content: draftQuery
+  });
+
+  const validation = basicValidate(draftQuery);
+  if (!validation.ok) {
+    throw new Error(`Query validation failed: ${validation.errors.join(", ")}`);
+  }
+  return draftQuery;
+}
+
 async function requestExpansion(
   element,
   model,
@@ -721,6 +1224,15 @@ export async function runPipeline(claimText, progressCallback = NOOP, options = 
   const reportDev = (payload) => safeReport({ type: "dev", ...payload });
   const claim = claimText?.trim();
   if (!claim) throw new Error("Claim text is required.");
+  if (options?.mockMode) {
+    return runMockPipeline({
+      claim,
+      options,
+      safeReport,
+      reportProgress,
+      reportDev
+    });
+  }
 
   const startLayer = normalizeStartLayer(options?.startLayer);
   let elements = [];

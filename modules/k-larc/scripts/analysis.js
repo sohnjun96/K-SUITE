@@ -1,3 +1,80 @@
+function ensureAnalysisDebugContainer(result) {
+  if (!result || typeof result !== 'object') return {};
+  if (!result.debug || typeof result.debug !== 'object' || Array.isArray(result.debug)) {
+    result.debug = {};
+  }
+  return result.debug;
+}
+
+function ensureStepTimingsContainer(result) {
+  const debug = ensureAnalysisDebugContainer(result);
+  if (!debug.stepTimings || typeof debug.stepTimings !== 'object' || Array.isArray(debug.stepTimings)) {
+    debug.stepTimings = {};
+  }
+  return debug.stepTimings;
+}
+
+function ensureClaimAnalysisResult(claimId) {
+  const current = analysisResults?.[claimId];
+  if (!current || typeof current !== 'object') {
+    analysisResults[claimId] = {
+      ClaimFeatures: [],
+      Relevant: {},
+      FeatureStatus: {},
+      verifications: {},
+      debug: {}
+    };
+  } else {
+    current.ClaimFeatures = Array.isArray(current.ClaimFeatures) ? current.ClaimFeatures : [];
+    current.Relevant = current.Relevant && typeof current.Relevant === 'object' ? current.Relevant : {};
+    current.FeatureStatus = current.FeatureStatus && typeof current.FeatureStatus === 'object' ? current.FeatureStatus : {};
+    current.verifications = current.verifications && typeof current.verifications === 'object' ? current.verifications : {};
+    ensureAnalysisDebugContainer(current);
+  }
+  return analysisResults[claimId];
+}
+
+function startStepTiming(result, stepId) {
+  const timings = ensureStepTimingsContainer(result);
+  const now = Date.now();
+  const previous = timings[stepId] && typeof timings[stepId] === 'object' ? timings[stepId] : {};
+  timings[stepId] = {
+    ...previous,
+    stepId,
+    startedAt: now,
+    endedAt: null,
+    durationMs: null,
+    status: 'active'
+  };
+}
+
+function finishStepTiming(result, stepId, status = 'done') {
+  const timings = ensureStepTimingsContainer(result);
+  const now = Date.now();
+  const current = timings[stepId] && typeof timings[stepId] === 'object' ? timings[stepId] : {};
+  const startedAt = Number.isFinite(current.startedAt) ? current.startedAt : now;
+  timings[stepId] = {
+    ...current,
+    stepId,
+    startedAt,
+    endedAt: now,
+    durationMs: Math.max(0, now - startedAt),
+    status
+  };
+}
+
+function markStepTimingSkipped(result, stepId) {
+  const timings = ensureStepTimingsContainer(result);
+  const now = Date.now();
+  timings[stepId] = {
+    stepId,
+    startedAt: now,
+    endedAt: now,
+    durationMs: 0,
+    status: 'skipped'
+  };
+}
+
 async function runAnalysis() {
   const resultControls = document.getElementById('result-controls');
   const claimSelect = document.getElementById('result-claim-select');
@@ -58,26 +135,27 @@ async function runAnalysis() {
       setClaimProgressStatus(claim.id, 'running', `대기열 등록 ${claimLabel}`);
 
       if (executionMode === 'quick') {
+        const quickTarget = ensureClaimAnalysisResult(claim.id);
+        startStepTiming(quickTarget, 'A');
         setClaimStepState(claim.id, 'A', 'active', `Quick analysis running ${claimLabel}`);
         try {
           const quick = await runQuickAnalysisForClaim(claim, mapInfo, validFiles);
-          analysisResults[claim.id] = {
-            ClaimFeatures: quick.claimFeatures || [],
-            Relevant: quick.relevant || {},
-            FeatureStatus: quick.featureStatus || {},
-            verifications: quick.verifications || {},
-            debug: {
-              quick: quick.debug || null
-            }
-          };
+          quickTarget.ClaimFeatures = quick.claimFeatures || [];
+          quickTarget.Relevant = quick.relevant || {};
+          quickTarget.FeatureStatus = quick.featureStatus || {};
+          quickTarget.verifications = quick.verifications || {};
+          quickTarget.debug = quickTarget.debug || {};
+          quickTarget.debug.quick = quick.debug || null;
+          finishStepTiming(quickTarget, 'A', 'done');
+          ['B', 'C', 'D', 'E'].forEach(stepId => markStepTimingSkipped(quickTarget, stepId));
           setClaimStepState(claim.id, 'A', 'done', `Quick analysis done ${claimLabel}`);
           ['B', 'C', 'D', 'E'].forEach(stepId => setClaimStepState(claim.id, stepId, 'done'));
           setClaimProgressStatus(claim.id, 'done', `Done ${claimLabel}`);
         } catch (e) {
-          analysisResults[claim.id] = {
-            error: e.message,
-            debug: { quickError: e.message }
-          };
+          quickTarget.error = e.message;
+          quickTarget.debug = quickTarget.debug || {};
+          quickTarget.debug.quickError = e.message;
+          finishStepTiming(quickTarget, 'A', 'error');
           setClaimStepState(claim.id, 'A', 'error', `Quick analysis failed: ${e.message}`);
           setClaimProgressStatus(claim.id, 'error', `Analysis stopped: ${e.message}`);
           saveAnalysisResultsToStorage();
@@ -91,29 +169,33 @@ async function runAnalysis() {
         saveAnalysisResultsToStorage();
         continue;
       }
+
+      const target = ensureClaimAnalysisResult(claim.id);
       // Step A
+      startStepTiming(target, 'A');
       setClaimStepState(claim.id, 'A', 'active', `A단계 진행 중 ${claimLabel}`);
       try {
         const stepA = await runStepAForClaim(claim);
-        analysisResults[claim.id] = {
-          ClaimFeatures: stepA?.ClaimFeatures || [],
-          Relevant: {},
-          FeatureStatus: {},
-          debug: { stepA }
-        };
+        target.ClaimFeatures = stepA?.ClaimFeatures || [];
+        target.Relevant = {};
+        target.FeatureStatus = {};
+        target.verifications = {};
+        target.error = null;
+        target.debug = target.debug || {};
+        target.debug.stepA = stepA;
+        finishStepTiming(target, 'A', 'done');
         setClaimStepState(claim.id, 'A', 'done', `A단계 완료 ${claimLabel}`);
       } catch (e) {
-        analysisResults[claim.id] = {
-          error: e.message,
-          debug: { stepAError: e.message }
-        };
+        target.error = e.message;
+        target.debug = target.debug || {};
+        target.debug.stepAError = e.message;
+        finishStepTiming(target, 'A', 'error');
         setClaimStepState(claim.id, 'A', 'error', `A단계 실패: ${e.message}`);
         setClaimProgressStatus(claim.id, 'error', `Analysis stopped: ${e.message}`);
         saveAnalysisResultsToStorage();
         continue;
       }
 
-      const target = analysisResults[claim.id];
       if (!target || target.error) {
         setClaimProgressStatus(claim.id, 'error', target?.error || 'Unknown error');
         saveAnalysisResultsToStorage();
@@ -121,6 +203,7 @@ async function runAnalysis() {
       }
 
       // Step B
+      startStepTiming(target, 'B');
       setClaimStepState(claim.id, 'B', 'active', `B단계 진행 중 ${claimLabel}`);
       try {
         setClaimProgressMessage(claim.id, `B-1 쿼리 생성 중 ${claimLabel}`);
@@ -168,11 +251,13 @@ async function runAnalysis() {
           merge: stepB3.debug || null
         };
         target.stepBRelevant = stepB3.relevant || {};
+        finishStepTiming(target, 'B', 'done');
         setClaimStepState(claim.id, 'B', 'done', `B단계 완료 ${claimLabel}`);
       } catch (e) {
         target.error = e.message;
         target.debug = target.debug || {};
         target.debug.stepBError = e.message;
+        finishStepTiming(target, 'B', 'error');
         setClaimStepState(claim.id, 'B', 'error', `B단계 실패: ${e.message}`);
         setClaimProgressStatus(claim.id, 'error', `Analysis stopped: ${e.message}`);
         saveAnalysisResultsToStorage();
@@ -180,6 +265,7 @@ async function runAnalysis() {
       }
 
       // Step C
+      startStepTiming(target, 'C');
       setClaimStepState(claim.id, 'C', 'active', `C단계 진행 중 ${claimLabel}`);
       try {
         const stepBMergedRelevant = target.stepBRelevant || {};
@@ -188,11 +274,13 @@ async function runAnalysis() {
         target.FeatureStatus = stepC.featureStatus || {};
         target.debug = target.debug || {};
         target.debug.stepC = stepC.debug;
+        finishStepTiming(target, 'C', 'done');
         setClaimStepState(claim.id, 'C', 'done', `C단계 완료 ${claimLabel}`);
       } catch (e) {
         target.error = e.message;
         target.debug = target.debug || {};
         target.debug.stepCError = e.message;
+        finishStepTiming(target, 'C', 'error');
         setClaimStepState(claim.id, 'C', 'error', `C단계 실패: ${e.message}`);
         setClaimProgressStatus(claim.id, 'error', `Analysis stopped: ${e.message}`);
         saveAnalysisResultsToStorage();
@@ -200,11 +288,13 @@ async function runAnalysis() {
       }
 
       // Step D
+      startStepTiming(target, 'D');
       setClaimStepState(claim.id, 'D', 'active', `D단계 진행 중 ${claimLabel}`);
       const missing = getMissingFeatures(target.ClaimFeatures, target.FeatureStatus, target.Relevant);
       if (missing.length === 0) {
         target.debug = target.debug || {};
         target.debug.stepD = { skipped: true };
+        markStepTimingSkipped(target, 'D');
         setClaimStepState(claim.id, 'D', 'done', 'D단계 건너뜀 (누락 구성요소 없음)');
       } else {
         try {
@@ -231,17 +321,29 @@ async function runAnalysis() {
             reviewByStepC: stepDReview?.debug || null,
             acceptedRelevant: stepDReview?.relevant || {}
           };
+          finishStepTiming(target, 'D', 'done');
           setClaimStepState(claim.id, 'D', 'done', `D단계 완료 ${claimLabel}`);
         } catch (e) {
           target.debug = target.debug || {};
           target.debug.stepDError = e.message;
+          finishStepTiming(target, 'D', 'error');
           setClaimStepState(claim.id, 'D', 'error', `D단계 실패: ${e.message}`);
         }
       }
 
       // Step E
+      startStepTiming(target, 'E');
       setClaimStepState(claim.id, 'E', 'active', `E단계 진행 중 ${claimLabel}`);
-      await runVerificationStage([claim], validFiles, mapInfo);
+      try {
+        await runVerificationStage([claim], validFiles, mapInfo);
+        finishStepTiming(target, 'E', 'done');
+      } catch (e) {
+        target.error = e.message;
+        target.debug = target.debug || {};
+        target.debug.stepEError = e.message;
+        finishStepTiming(target, 'E', 'error');
+        throw e;
+      }
       setClaimStepState(claim.id, 'E', 'done', `E단계 완료 ${claimLabel}`);
       setClaimProgressStatus(claim.id, 'done', `완료 ${claimLabel}`);
 
@@ -285,7 +387,7 @@ async function runStepAForClaim(claim) {
     claim_text: claim.text
   });
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages
   };
 
@@ -360,7 +462,7 @@ async function runQuickAnalysisForClaim(claim, mapInfo, fileIds) {
     claim_text: claim.text
   });
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };
@@ -399,7 +501,7 @@ async function runStepBQueryGeneration(claimFeatures) {
     claim_features_json: claimFeatures
   });
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages
   };
 
@@ -545,7 +647,7 @@ async function runStepBMergeRag(stepBResponses) {
     stepb2_responses_json: filtered
   });
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages
   };
 
@@ -570,7 +672,7 @@ async function runStepBQueryBundle(featuresWithQueries, mapInfo, fileIds, queryI
     features_json: featuresWithQueries
   });
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };
@@ -658,7 +760,7 @@ async function runStepCForClaim(claim, claimFeatures, stepBMergedRelevant) {
     stepb_merged_relevant_json: evidenceBundle.relevantWithEvidenceIds
   });
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages
   };
 
@@ -720,7 +822,7 @@ async function runStepDForClaim(claim, missingFeatures, mapInfo, fileIds, target
     current_relevant_json: target.Relevant || {}
   });
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };
@@ -754,7 +856,7 @@ async function runVerificationStage(claimsToVerify, fileIds, citationMap) {
   });
 
   const payload = {
-    model: 'gpt-oss-120b',
+    model: resolveLarcModelName(),
     messages: promptPair.messages,
     files: buildFileRefs(fileIds)
   };

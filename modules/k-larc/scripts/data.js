@@ -5,17 +5,44 @@ function ensureMockDemoDataset() {
   let citationsUpdated = false;
 
   const nonEmptyClaims = claims.filter(c => String(c?.text || '').trim());
-  if (nonEmptyClaims.length === 0) {
-    const sampleClaim = typeof getMockDefaultClaimText === 'function'
-      ? getMockDefaultClaimText()
-      : 'Mock claim text';
+  const sampleClaims = typeof getMockClaimFixtures === 'function'
+    ? getMockClaimFixtures()
+    : [
+      typeof getMockDefaultClaimText === 'function'
+        ? getMockDefaultClaimText()
+        : 'Mock claim text'
+    ];
+  const firstSample = String(sampleClaims[0] || '').trim();
+  const hasOnlyLegacySingleMockClaim = nonEmptyClaims.length === 1
+    && claims.length <= 1
+    && String(nonEmptyClaims[0]?.text || '').trim() === firstSample;
 
-    if (!Array.isArray(claims) || claims.length === 0) {
-      claims = [{ id: Date.now(), name: 'Claim 1', text: sampleClaim }];
-    } else {
-      claims[0].text = sampleClaim;
-      claims[0].name = claims[0].name || 'Claim 1';
+  if (nonEmptyClaims.length === 0 || hasOnlyLegacySingleMockClaim) {
+    const fallbackClaim = firstSample || 'Mock claim text';
+    const seedClaims = sampleClaims
+      .map(text => String(text || '').trim())
+      .filter(Boolean);
+    const normalizedSeedClaims = seedClaims.length > 0 ? seedClaims : [fallbackClaim];
+
+    if (!Array.isArray(claims)) {
+      claims = [];
     }
+
+    normalizedSeedClaims.forEach((text, idx) => {
+      const existing = claims[idx];
+      if (existing && typeof existing === 'object') {
+        existing.id = existing.id || (Date.now() + idx);
+        existing.name = existing.name || `Claim ${idx + 1}`;
+        existing.text = text;
+        return;
+      }
+
+      claims[idx] = {
+        id: Date.now() + idx,
+        name: `Claim ${idx + 1}`,
+        text
+      };
+    });
     claimsUpdated = true;
   }
 
@@ -79,8 +106,116 @@ function ensureMockDemoDataset() {
   }
 }
 
+function buildMockVerificationMapFromRelevant(relevant) {
+  const verifications = {};
+  let seq = 0;
+
+  Object.entries(relevant || {}).forEach(([docName, items]) => {
+    if (!Array.isArray(items)) return;
+    items.forEach(item => {
+      const featureId = String(item?.Feature || '').trim();
+      if (!featureId) return;
+      seq += 1;
+      const key = `${featureId}_${docName}`;
+      if (!verifications[key]) {
+        verifications[key] = seq % 4 === 0 ? 'F' : 'P';
+      }
+    });
+  });
+
+  return verifications;
+}
+
+function buildMockStepTimingsSeed(claimIndex = 0) {
+  const stepIds = ['A', 'B', 'C', 'D', 'E'];
+  const baseDurations = [950, 2800, 1300, 900, 700];
+  const offset = Math.max(0, Number(claimIndex) || 0) * 120;
+  let cursor = Date.now() - 60000 - offset;
+  const timings = {};
+
+  stepIds.forEach((stepId, idx) => {
+    const durationMs = baseDurations[idx] + offset;
+    timings[stepId] = {
+      stepId,
+      startedAt: cursor,
+      endedAt: cursor + durationMs,
+      durationMs,
+      status: 'done'
+    };
+    cursor += durationMs + 180;
+  });
+
+  return timings;
+}
+
+function buildMockDemoAnalysisResult(claim, claimIndex = 0) {
+  const claimText = String(claim?.text || '').trim();
+  const claimFeatures = typeof buildMockClaimFeatures === 'function'
+    ? buildMockClaimFeatures(claimText)
+    : [];
+  const baseRelevant = typeof buildMockRelevant === 'function'
+    ? buildMockRelevant(claimFeatures, `Seed-${claimIndex + 1}`)
+    : {};
+  const relevant = typeof mergeRelevantWithPositions === 'function'
+    ? mergeRelevantWithPositions({}, baseRelevant)
+    : (baseRelevant || {});
+
+  const featureStatus = {};
+  (claimFeatures || []).forEach(feature => {
+    if (!feature?.Id) return;
+    featureStatus[feature.Id] = 'ENTAIL';
+  });
+
+  return {
+    ClaimFeatures: claimFeatures,
+    Relevant: relevant,
+    FeatureStatus: featureStatus,
+    verifications: buildMockVerificationMapFromRelevant(relevant),
+    debug: {
+      stepA: { ClaimFeatures: claimFeatures },
+      stepB: { seeded: true },
+      stepC: { seeded: true, FeatureStatus: featureStatus },
+      stepD: { seeded: true },
+      stepTimings: buildMockStepTimingsSeed(claimIndex)
+    }
+  };
+}
+
+function ensureMockDemoAnalysisResults() {
+  if (!settings.mockMode) return false;
+
+  if (!analysisResults || typeof analysisResults !== 'object' || Array.isArray(analysisResults)) {
+    analysisResults = {};
+  }
+
+  const nonEmptyClaims = claims.filter(c => String(c?.text || '').trim());
+  let changed = false;
+
+  nonEmptyClaims.forEach((claim, index) => {
+    const key = claim?.id;
+    if (key === null || key === undefined) return;
+    const current = analysisResults[key];
+    const hasUsableData = !!(
+      current
+      && typeof current === 'object'
+      && !current.error
+      && Array.isArray(current.ClaimFeatures)
+      && current.ClaimFeatures.length > 0
+      && current.Relevant
+      && typeof current.Relevant === 'object'
+      && Object.keys(current.Relevant).length > 0
+    );
+    if (hasUsableData) return;
+
+    analysisResults[key] = buildMockDemoAnalysisResult(claim, index);
+    changed = true;
+  });
+
+  return changed;
+}
+
 async function loadSettings() {
-  // savedCitations 키 추가
+  // savedCitations ??異붽?
   const data = await chrome.storage.local.get([
     'webuiBaseUrl',
     'ksuiteSharedApiKey',
@@ -115,25 +250,25 @@ async function loadSettings() {
     apiKeyInput.disabled = settings.mockMode;
   }
 
-  // A. 청구항 불러오기
+  // A. 泥?뎄??遺덈윭?ㅺ린
   if (data.savedClaims && Array.isArray(data.savedClaims) && data.savedClaims.length > 0) {
-    // [수정] 기존 데이터 호환성을 위해 name 속성 추가
+    // [?섏젙] 湲곗〈 ?곗씠???명솚?깆쓣 ?꾪빐 name ?띿꽦 異붽?
     claims = data.savedClaims.map((claim, index) => ({
       ...claim,
-      name: claim.name || `청구항 ${index + 1}`
+      name: claim.name || `泥?뎄??${index + 1}`
     }));
   } else {
-    claims = [{ id: Date.now(), name: '청구항 1', text: '' }];
+    claims = [{ id: Date.now(), name: '泥?뎄??1', text: '' }];
   }
   renderClaims();
 
-  // B. [추가됨] 인용발명 불러오기 및 상태 복구
+  // B. [異붽??? ?몄슜諛쒕챸 遺덈윭?ㅺ린 諛??곹깭 蹂듦뎄
   if (data.savedCitations && Array.isArray(data.savedCitations)) {
     citations = data.savedCitations;
     renderCitations();
 
-    // *중요*: 대시보드를 닫았을 때 'processing' 상태였던 항목들은
-    // 다시 열었을 때 폴링(상태확인)을 재개해야 함.
+    // *以묒슂*: ??쒕낫?쒕? ?レ븯????'processing' ?곹깭?????ぉ?ㅼ?
+    // ?ㅼ떆 ?댁뿀?????대쭅(?곹깭?뺤씤)???ш컻?댁빞 ??
     citations.forEach(c => {
       if (c.status === 'processing' || c.status === 'uploading') {
         pollStatus(c);
@@ -141,26 +276,34 @@ async function loadSettings() {
     });
   }
 
-  // C. [추가됨] 분석 결과 불러오기 및 렌더링
+  // Seed mock dataset when mock mode is enabled.
   if (settings.mockMode) {
     ensureMockDemoDataset();
   }
 
-  if (data.savedAnalysisResults) {
-    analysisResults = data.savedAnalysisResults;
-    const resultControls = document.getElementById('result-controls');
-    const claimSelect = document.getElementById('result-claim-select');
-    const nonEmptyClaims = claims.filter(c => c.text.trim());
+  analysisResults = (data.savedAnalysisResults && typeof data.savedAnalysisResults === 'object')
+    ? data.savedAnalysisResults
+    : {};
 
-    if (Object.keys(analysisResults).length > 0 && nonEmptyClaims.length > 0) {
-      resultControls.classList.remove('hidden');
-      initializeClaimProgressFromSavedResults(nonEmptyClaims);
-      refreshResultClaimSelect(nonEmptyClaims);
-      if (claimSelect.options.length > 0) {
-        claimSelect.selectedIndex = 0;
-        selectedResultClaimId = Number.parseInt(claimSelect.value, 10);
-        renderResultTable(selectedResultClaimId);
-      }
+  if (settings.mockMode) {
+    const mockResultsSeeded = ensureMockDemoAnalysisResults();
+    if (mockResultsSeeded) {
+      saveAnalysisResultsToStorage();
+    }
+  }
+
+  const resultControls = document.getElementById('result-controls');
+  const claimSelect = document.getElementById('result-claim-select');
+  const nonEmptyClaims = claims.filter(c => c.text.trim());
+
+  if (Object.keys(analysisResults).length > 0 && nonEmptyClaims.length > 0) {
+    resultControls.classList.remove('hidden');
+    initializeClaimProgressFromSavedResults(nonEmptyClaims);
+    refreshResultClaimSelect(nonEmptyClaims);
+    if (claimSelect.options.length > 0) {
+      claimSelect.selectedIndex = 0;
+      selectedResultClaimId = Number.parseInt(claimSelect.value, 10);
+      renderResultTable(selectedResultClaimId);
     }
   } else {
     claimProgressById = {};
@@ -192,7 +335,7 @@ function saveAnalysisResultsToStorage() {
 
 function addClaimInput() {
   const id = Date.now();
-  const newName = `청구항 ${claims.length + 1}`;
+  const newName = `泥?뎄??${claims.length + 1}`;
   claims.push({ id, name: newName, text: '' });
   renderClaims();
   saveClaimsToStorage();
@@ -237,14 +380,14 @@ function _renderClaimsLegacy() {
     div.innerHTML = `
       <div class="claim-header">
         <input type="text" class="claim-name-input" value="${claim.name}" data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>
-        <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">✕ 삭제</button>
+        <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">????젣</button>
       </div>
-      <textarea rows="1" placeholder="청구항 내용을 입력하세요..." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
+      <textarea rows="1" placeholder="泥?뎄???댁슜???낅젰?섏꽭??.." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
     `;
     container.appendChild(div);
 
     const textarea = div.querySelector('textarea');
-    // 초기 로드 시 높이 조절
+    // 珥덇린 濡쒕뱶 ???믪씠 議곗젅
     autoResizeTextarea(textarea);
   });
 
@@ -255,7 +398,7 @@ function _renderClaimsLegacy() {
 
     container.querySelectorAll('textarea').forEach(el => {
       el.addEventListener('input', (e) => {
-        // 높이 자동 조절 및 텍스트 업데이트
+        // ?믪씠 ?먮룞 議곗젅 諛??띿뒪???낅뜲?댄듃
         autoResizeTextarea(e.target);
         updateClaimText(parseInt(e.target.dataset.id), e.target.value);
       });
@@ -277,7 +420,7 @@ function buildClaimCardElement(claim, readOnly) {
     const content = document.createElement('div');
     content.className = 'claim-readonly-content';
     const text = (claim.text || '').trim();
-    content.textContent = text || '(청구항 내용이 없습니다.)';
+    content.textContent = text || '(泥?뎄???댁슜???놁뒿?덈떎.)';
     return content;
   }
 
@@ -286,9 +429,9 @@ function buildClaimCardElement(claim, readOnly) {
   div.innerHTML = `
     <div class="claim-header">
       <input type="text" class="claim-name-input" value="${claim.name}" data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>
-      <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">삭제</button>
+      <button class="btn-remove-claim ${readOnly ? 'hidden' : ''}" data-id="${claim.id}">??젣</button>
     </div>
-    <textarea rows="1" placeholder="청구항 내용을 입력하세요..." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
+    <textarea rows="1" placeholder="泥?뎄???댁슜???낅젰?섏꽭??.." data-id="${claim.id}" ${readOnly ? 'readonly tabindex="-1"' : ''}>${claim.text}</textarea>
   `;
 
   const textarea = div.querySelector('textarea');
@@ -370,123 +513,230 @@ function saveCitationsToStorage() {
   chrome.storage.local.set({ savedCitations: citations });
 }
 
+function buildTabSelectPlaceholderOption() {
+  const option = document.createElement('option');
+  option.value = '';
+  option.textContent = '-- Select a tab --';
+  return option;
+}
+
+function buildMockTabDescriptors() {
+  const fixtures = typeof buildMockCitationFixtures === 'function'
+    ? buildMockCitationFixtures()
+    : [];
+
+  if (fixtures.length > 0) {
+    return fixtures.map((fixture, index) => {
+      const fallbackDocName = typeof getMockDocNameByIndex === 'function'
+        ? getMockDocNameByIndex(index)
+        : `D${index + 1}`;
+      const docName = String(fixture?.name || fallbackDocName || `D${index + 1}`).trim();
+      const title = String(fixture?.title || `Mock Citation ${index + 1}`).trim();
+      return {
+        value: String(-(index + 1)),
+        docName,
+        title,
+        label: `[MOCK] ${docName} - ${title}`
+      };
+    });
+  }
+
+  const descriptors = [];
+  for (let i = 0; i < 5; i += 1) {
+    const docName = typeof getMockDocNameByIndex === 'function'
+      ? getMockDocNameByIndex(i)
+      : `D${i + 1}`;
+    descriptors.push({
+      value: String(-(i + 1)),
+      docName,
+      title: `Mock Citation ${i + 1}`,
+      label: `[MOCK] ${docName} - Mock Citation ${i + 1}`
+    });
+  }
+  return descriptors;
+}
+
+function appendMockTabs(select) {
+  if (!settings.mockMode) return 0;
+
+  const mockTabs = buildMockTabDescriptors();
+  mockTabs.forEach((mockTab) => {
+    const option = document.createElement('option');
+    option.value = mockTab.value;
+    option.textContent = mockTab.label;
+    option.dataset.mock = 'true';
+    option.dataset.mockDocName = mockTab.docName;
+    option.dataset.mockTitle = mockTab.title;
+    select.appendChild(option);
+  });
+
+  return mockTabs.length;
+}
+
+function appendBrowserTabs(select, tabs) {
+  const validTabs = (tabs || []).filter((tab) =>
+    tab?.id
+    && typeof tab.url === 'string'
+    && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))
+  );
+
+  validTabs.forEach((tab) => {
+    const option = document.createElement('option');
+    option.value = String(tab.id);
+    const title = String(tab.title || tab.url || '').trim();
+    option.textContent = title.length > 80 ? `${title.substring(0, 80)}...` : title;
+    select.appendChild(option);
+  });
+
+  return validTabs.length;
+}
+
+function restoreTabSelection(select, previousValue) {
+  if (!previousValue) return;
+  const exists = Array.from(select.options).some((option) => option.value === previousValue);
+  if (exists) {
+    select.value = previousValue;
+  }
+}
+
 function loadTabs() {
   const select = document.getElementById('tab-select');
   if (!select) return;
 
   const previousValue = select.value;
-  select.innerHTML = '<option value="">-- 분석할 탭을 선택 --</option>';
+  select.innerHTML = '';
+  select.appendChild(buildTabSelectPlaceholderOption());
 
-  chrome.tabs.query({}, (tabs) => {
-    if (chrome.runtime.lastError) {
-      console.warn('Tab query failed:', chrome.runtime.lastError.message);
-      return;
+  const mockCount = appendMockTabs(select);
+
+  if (!chrome?.tabs?.query) {
+    if (mockCount === 0) {
+      const unavailable = document.createElement('option');
+      unavailable.value = '';
+      unavailable.disabled = true;
+      unavailable.textContent = '(Browser tabs unavailable)';
+      select.appendChild(unavailable);
     }
-
-    const validTabs = (tabs || []).filter((tab) =>
-      tab?.id &&
-      typeof tab.url === 'string' &&
-      (tab.url.startsWith('http://') || tab.url.startsWith('https://'))
-    );
-
-    validTabs.forEach((tab) => {
-      const option = document.createElement('option');
-      option.value = tab.id;
-      const title = String(tab.title || tab.url || '').trim();
-      option.textContent = title.length > 60 ? `${title.substring(0, 60)}...` : title;
-      select.appendChild(option);
-    });
-
-    if (previousValue && Array.from(select.options).some((opt) => opt.value === previousValue)) {
-      select.value = previousValue;
-    }
-  });
-}
-
-async function addCitationFromTab() {
-  const select = document.getElementById('tab-select');
-  const tabId = parseInt(select.value);
-  if (!tabId) {
-    alert('먼저 탭을 선택해주세요.');
+    restoreTabSelection(select, previousValue);
     return;
   }
 
-  // 중복 체크 (탭 ID 기준) - 필요 시 해제 가능
-  // 이미 업로드된 파일이 있어도 탭이 같으면 경고
+  chrome.tabs.query({ currentWindow: true }, (tabs) => {
+    if (chrome.runtime.lastError) {
+      console.warn('Tab query failed:', chrome.runtime.lastError.message);
+      if (mockCount === 0) {
+        const failed = document.createElement('option');
+        failed.value = '';
+        failed.disabled = true;
+        failed.textContent = '(Unable to load tabs)';
+        select.appendChild(failed);
+      }
+      restoreTabSelection(select, previousValue);
+      return;
+    }
+
+    const browserTabCount = appendBrowserTabs(select, tabs);
+    if (browserTabCount === 0 && mockCount === 0) {
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.disabled = true;
+      empty.textContent = '(No HTTP(S) tabs found)';
+      select.appendChild(empty);
+    }
+
+    restoreTabSelection(select, previousValue);
+  });
+}
+async function addCitationFromTab() {
+  const select = document.getElementById('tab-select');
+  const selectedOption = select?.options?.[select.selectedIndex];
+  const tabId = Number.parseInt(select?.value || '', 10);
+  if (!Number.isFinite(tabId)) {
+    alert('Please select a tab first.');
+    return;
+  }
+
+  const isMockSelection = selectedOption?.dataset?.mock === 'true';
+
   const existing = citations.find(c => c.tabId === tabId);
   if (existing) {
-    if(!confirm(`'${existing.name}'으로 이미 추가된 탭입니다. 다시 추가하시겠습니까?`)) return;
+    if (!confirm(`'${existing.name}' already exists. Add it again?`)) return;
   }
 
   const citationId = Date.now();
-  const citationObj = { 
-    id: citationId, 
-    tabId: tabId, 
-    name: `인용발명 ${citations.length + 1}`, 
-    status: 'uploading', 
+  const citationObj = {
+    id: citationId,
+    tabId,
+    name: isMockSelection
+      ? (selectedOption?.dataset?.mockDocName || `D${citations.length + 1}`)
+      : `Citation ${citations.length + 1}`,
+    status: 'uploading',
     fileId: null,
     title: 'Loading...',
-    text: '' 
+    text: ''
   };
-  
+
   citations.push(citationObj);
   renderCitations();
-  saveCitationsToStorage(); // 1. 추가 즉시 저장
+  saveCitationsToStorage();
 
   if (settings.mockMode) {
     setTimeout(() => {
       const target = citations.find(c => c.id === citationId);
       if (!target) return;
-      const selectedTitle = select.options[select.selectedIndex]?.textContent || `Tab ID: ${tabId}`;
-      const mockDocName = typeof getMockDocNameByIndex === 'function'
-        ? getMockDocNameByIndex(citations.length - 1)
-        : `D${(citations.length % 3) + 1}`;
+
+      const selectedTitle = selectedOption?.dataset?.mockTitle
+        || selectedOption?.textContent
+        || `Tab ID: ${tabId}`;
+      const mockDocName = selectedOption?.dataset?.mockDocName
+        || (typeof getMockDocNameByIndex === 'function'
+          ? getMockDocNameByIndex(citations.length - 1)
+          : `D${(citations.length % 3) + 1}`);
       const mockPayload = typeof buildMockCitationPayload === 'function'
         ? buildMockCitationPayload(mockDocName, selectedTitle)
         : { paragraphs: {}, claims: {} };
+
       target.name = mockDocName;
       target.fileId = `mock-file-${mockDocName.toLowerCase()}-${citationId}`;
       target.title = selectedTitle;
-      target.text = `[Mock 업로드 문서]\n${selectedTitle}\n\n이 텍스트는 네트워크 없이 UI 테스트를 위해 생성되었습니다.`;
       target.status = 'completed';
       target.text = JSON.stringify(mockPayload, null, 2);
+
       renderCitations();
       saveCitationsToStorage();
     }, 450);
     return;
   }
 
-  chrome.runtime.sendMessage({ 
-    type: 'EXTRACT_AND_UPLOAD', 
-    tabId: tabId, 
-    baseUrl: settings.url, 
-    apiKey: settings.key 
+  chrome.runtime.sendMessage({
+    type: 'EXTRACT_AND_UPLOAD',
+    tabId,
+    baseUrl: settings.url,
+    apiKey: settings.key
   }, (response) => {
-    
     const target = citations.find(c => c.id === citationId);
-    if (!target) return; 
+    if (!target) return;
 
     if (response.ok) {
       target.fileId = response.fileId;
       target.title = response.title;
       target.text = response.text;
       target.status = 'processing';
-      
+
       renderCitations();
-      saveCitationsToStorage(); // 2. 업로드 성공 후 정보 업데이트 저장
+      saveCitationsToStorage();
       pollStatus(target);
     } else {
       target.status = 'failed';
       target.error = response.error;
       renderCitations();
-      saveCitationsToStorage(); // 3. 실패 상태 저장
-      alert(`업로드 실패: ${response.error}`);
+      saveCitationsToStorage();
+      alert(`Upload failed: ${response.error}`);
     }
   });
 }
-
 function pollStatus(citation) {
-  // 이미 완료되었거나 실패한 상태면 재실행 방지
+  // ?대? ?꾨즺?섏뿀嫄곕굹 ?ㅽ뙣???곹깭硫??ъ떎??諛⑹?
   if (citation.status === 'completed' || citation.status === 'failed') return;
 
   if (settings.mockMode) {
@@ -504,14 +754,14 @@ function pollStatus(citation) {
   }
 
   const interval = setInterval(() => {
-    // 1. 사용자가 목록에서 삭제했으면 폴링 중단
+    // 1. ?ъ슜?먭? 紐⑸줉?먯꽌 ??젣?덉쑝硫??대쭅 以묐떒
     const currentCitation = citations.find(c => c.id === citation.id);
     if (!currentCitation) {
       clearInterval(interval);
       return;
     }
 
-    // 2. 상태 확인 요청
+    // 2. ?곹깭 ?뺤씤 ?붿껌
     chrome.runtime.sendMessage({ 
       type: 'CHECK_STATUS', 
       fileId: citation.fileId,
@@ -519,46 +769,43 @@ function pollStatus(citation) {
       apiKey: settings.key
     }, (res) => {
       
-      // 3. 응답 처리
+      // 3. ?묐떟 泥섎━
       if (res.ok) {
-        console.log(`[Polling] ${citation.name}:`, res.status); // 콘솔에서 상태 확인 가능
-
+        console.log(`[Polling] ${citation.name}:`, res.status); // 肄섏넄?먯꽌 ?곹깭 ?뺤씤 媛??
         if (res.status === 'completed') {
-          // 성공 처리
+          // ?깃났 泥섎━
           currentCitation.status = 'completed';
           saveCitationsToStorage();
           renderCitations();
-          clearInterval(interval); // ★ 중요: 루프 종료
+          clearInterval(interval); // ??以묒슂: 猷⑦봽 醫낅즺
         } 
         else if (res.status === 'failed') {
-          // 실패 처리
+          // ?ㅽ뙣 泥섎━
           currentCitation.status = 'failed';
           saveCitationsToStorage();
           renderCitations();
-          clearInterval(interval); // ★ 중요: 루프 종료
+          clearInterval(interval); // ??以묒슂: 猷⑦봽 醫낅즺
         }
-        // processing 인 경우 아무것도 하지 않고 다음 틱 대기
-      } else {
-        // 네트워크 에러 등이 발생했을 때
-        console.warn('Polling error response:', res.error);
+        // processing ??寃쎌슦 ?꾨Т寃껊룄 ?섏? ?딄퀬 ?ㅼ쓬 ???湲?      } else {
+        // ?ㅽ듃?뚰겕 ?먮윭 ?깆씠 諛쒖깮?덉쓣 ??        console.warn('Polling error response:', res.error);
         
-        // (선택사항) 연속 에러 시 중단 로직을 넣을 수도 있으나, 
-        // 일시적 네트워크 오류일 수 있으므로 보통은 유지합니다.
+        // (?좏깮?ы빆) ?곗냽 ?먮윭 ??以묐떒 濡쒖쭅???ｌ쓣 ?섎룄 ?덉쑝?? 
+        // ?쇱떆???ㅽ듃?뚰겕 ?ㅻ쪟?????덉쑝誘濡?蹂댄넻? ?좎??⑸땲??
       }
     });
-  }, 3000); // 3초 간격
+  }, 3000); // 3珥?媛꾧꺽
 }
 
 function removeCitation(id) {
-  // 1. 삭제 대상 찾기
+  // 1. ??젣 ???李얘린
   const targetIndex = citations.findIndex(c => c.id === id);
   if (targetIndex === -1) return;
   
   const target = citations[targetIndex];
 
-  if (!confirm(`'${target.name}'을(를) 삭제하시겠습니까?\n(서버에 업로드된 파일도 함께 삭제됩니다)`)) return;
+  if (!confirm(`'${target.name}'??瑜? ??젣?섏떆寃좎뒿?덇퉴?\n(?쒕쾭???낅줈?쒕맂 ?뚯씪???④퍡 ??젣?⑸땲??`)) return;
   
-  // 2. [추가됨] 서버 파일 삭제 요청 (fileId가 있는 경우)
+  // 2. [異붽??? ?쒕쾭 ?뚯씪 ??젣 ?붿껌 (fileId媛 ?덈뒗 寃쎌슦)
   if (target.fileId && settings.key) {
     console.log(`Deleting file from server: ${target.fileId}`);
     
@@ -572,17 +819,17 @@ function removeCitation(id) {
         console.log(`File deleted successfully: ${target.fileId}`);
       } else {
         console.warn(`Failed to delete file on server: ${response?.error}`);
-        // 서버 삭제 실패해도 UI에서는 지우는 것이 UX상 자연스러움
+        // ?쒕쾭 ??젣 ?ㅽ뙣?대룄 UI?먯꽌??吏?곕뒗 寃껋씠 UX???먯뿰?ㅻ윭?
       }
     });
   }
 
-  // 3. UI 및 로컬 데이터에서 삭제
+  // 3. UI 諛?濡쒖뺄 ?곗씠?곗뿉????젣
   citations.splice(targetIndex, 1);
   
-  // 이름 재정렬 (D1, D2...)
+  // ?대쫫 ?ъ젙??(D1, D2...)
   citations.forEach((c, index) => {
-    c.name = `인용발명 ${index + 1}`;
+    c.name = `?몄슜諛쒕챸 ${index + 1}`;
   });
   
   renderCitations();
@@ -595,7 +842,7 @@ function renderCitations() {
   const readOnly = document.body.classList.contains('analysis-active');
   
   if (citations.length === 0) {
-    list.innerHTML = '<li class="empty-placeholder" style="list-style:none; padding:20px; text-align:center; color:#888;">분석할 탭을 선택하고 추가하세요.</li>';
+    list.innerHTML = '<li class="empty-placeholder" style="list-style:none; padding:20px; text-align:center; color:#888;">遺꾩꽍????쓣 ?좏깮?섍퀬 異붽??섏꽭??</li>';
     return;
   }
 
@@ -604,7 +851,7 @@ function renderCitations() {
     li.className = 'citation-item';
     li.setAttribute('role', 'button');
     li.setAttribute('tabindex', '0');
-    li.setAttribute('aria-label', `${c.name} 미리보기 열기`);
+    li.setAttribute('aria-label', `${c.name} 誘몃━蹂닿린 ?닿린`);
     
     const badgeClass = c.status; 
     
@@ -616,7 +863,7 @@ function renderCitations() {
       <div class="citation-actions">
         <span class="status-badge ${badgeClass}">${c.status}</span>
         ${readOnly ? '' : `
-        <button class="btn-delete-citation" title="삭제">
+        <button class="btn-delete-citation" title="??젣">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -653,18 +900,18 @@ function openModal(citation) {
   const title = document.getElementById('modal-title');
   const content = document.getElementById('modal-text-content');
   
-  title.textContent = `${citation.name} 내용 미리보기`;
+  title.textContent = `${citation.name} ?댁슜 誘몃━蹂닿린`;
   
   if (citation.status === 'uploading' || citation.status === 'processing') {
-    content.textContent = "현재 파일을 처리 중입니다. 잠시 후 다시 시도해주세요.";
+    content.textContent = "?꾩옱 ?뚯씪??泥섎━ 以묒엯?덈떎. ?좎떆 ???ㅼ떆 ?쒕룄?댁＜?몄슂.";
   } else if (citation.text) {
     const MAX_LENGTH = 20000;
     const displayUserInfo = citation.text.length > MAX_LENGTH 
-      ? citation.text.substring(0, MAX_LENGTH) + "\n\n... (텍스트가 너무 길어 생략됨)" 
+      ? citation.text.substring(0, MAX_LENGTH) + "\n\n... (?띿뒪?멸? ?덈Т 湲몄뼱 ?앸왂??" 
       : citation.text;
     content.textContent = displayUserInfo;
   } else {
-    content.textContent = "(추출된 텍스트가 없습니다)";
+    content.textContent = "(異붿텧???띿뒪?멸? ?놁뒿?덈떎)";
   }
   
   openDialogModal('preview-modal', '#btn-close-modal');
@@ -675,7 +922,7 @@ function closeModal() {
 }
 
 function openDirectAddModal() {
-  document.getElementById('direct-citation-name').value = `인용발명 ${citations.length + 1}`;
+  document.getElementById('direct-citation-name').value = `?몄슜諛쒕챸 ${citations.length + 1}`;
   document.getElementById('direct-citation-content').value = '';
   openDialogModal('direct-add-modal', '#direct-citation-name');
 }
@@ -689,18 +936,18 @@ function handleDirectAdd() {
   const text = document.getElementById('direct-citation-content').value.trim();
 
   if (!name || !text) {
-    alert('문서 이름과 내용을 모두 입력해주세요.');
+    alert('臾몄꽌 ?대쫫怨??댁슜??紐⑤몢 ?낅젰?댁＜?몄슂.');
     return;
   }
   
   const citationId = Date.now();
   const citationObj = { 
     id: citationId,
-    tabId: null, // 직접 추가는 tabId가 없음
+    tabId: null, // 吏곸젒 異붽???tabId媛 ?놁쓬
     name: name, 
     status: 'uploading', 
     fileId: null,
-    title: name, // 제목을 이름으로 설정
+    title: name, // ?쒕ぉ???대쫫?쇰줈 ?ㅼ젙
     text: text 
   };
   
@@ -742,7 +989,10 @@ function handleDirectAdd() {
       target.error = response.error;
       renderCitations();
       saveCitationsToStorage();
-      alert(`업로드 실패: ${response.error}`);
+      alert(`?낅줈???ㅽ뙣: ${response.error}`);
     }
   });
 }
+
+
+

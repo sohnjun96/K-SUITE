@@ -30,7 +30,7 @@ async function sendUserChat() {
   });
 
   const payload = {
-    model: "gpt-oss-120b",
+    model: resolveLarcModelName(),
     messages: promptPair.messages,
     files: validFiles.map(id => ({ type: "file", id: id })) // RAG 활성화
   };

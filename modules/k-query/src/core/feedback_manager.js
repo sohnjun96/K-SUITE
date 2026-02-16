@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = "modelFeedback";
+const STORAGE_KEY = "modelFeedback";
 let writeQueue = Promise.resolve();
 
 function enqueueWrite(task) {

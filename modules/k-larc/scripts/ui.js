@@ -1,13 +1,12 @@
 function setSortOrder(order) {
   currentSortOrder = order;
-  // 버튼 활성 상태 업데이트
+  // ?? ?? ?? ?? ????
   document.getElementById('btn-sort-by-doc').classList.toggle('active', order === 'doc_then_feature');
   document.getElementById('btn-sort-by-feature').classList.toggle('active', order === 'feature_then_doc');
-  
-  // 현재 선택된 청구항으로 테이블 다시 렌더링
+  // ?? ??? ????? ??? ?? ???
   const claimSelect = document.getElementById('result-claim-select');
   if (claimSelect.value) {
-    renderResultTable(parseInt(claimSelect.value));
+    renderResultTable(parseInt(claimSelect.value, 10));
   }
 }
 
@@ -82,14 +81,13 @@ function formatAnalysisElapsedText(elapsedMs) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   const pad = value => String(value).padStart(2, '0');
-
   if (hours > 0) {
-    return `${hours}시간 ${pad(minutes)}분 ${pad(seconds)}초`;
+    return `${hours}h ${pad(minutes)}m ${pad(seconds)}s`;
   }
   if (minutes > 0) {
-    return `${minutes}분 ${pad(seconds)}초`;
+    return `${minutes}m ${pad(seconds)}s`;
   }
-  return `${seconds}초`;
+  return `${seconds}s`;
 }
 
 function renderAnalysisElapsedTime() {
@@ -97,7 +95,7 @@ function renderAnalysisElapsedTime() {
   if (!button || !analysisStartedAt) return;
 
   const elapsedText = formatAnalysisElapsedText(Date.now() - analysisStartedAt);
-  button.innerHTML = `분석 진행 중... (${elapsedText})`;
+  button.innerHTML = `Running analysis... (${elapsedText})`;
 
 }
 
@@ -258,38 +256,38 @@ function truncateSummaryText(text, maxLength = 36) {
 function buildClaimHeaderSummary() {
   const total = claims.length;
   const filled = claims.filter(c => normalizeSummaryText(c.text)).length;
-  if (total === 0) return '입력된 청구항 없음';
+  if (total === 0) return 'No claims added';
 
   const previews = claims.map(claim => {
-    const text = normalizeSummaryText(claim.text) || '(내용 없음)';
+    const text = normalizeSummaryText(claim.text) || '(No content)';
     return `${claim.name}: ${truncateSummaryText(text, 28)}`;
   });
 
-  return `${filled}/${total} 입력 | ${previews.join(' | ')}`;
+  return `${filled}/${total} filled | ${previews.join(' | ')}`;
 }
 
 function buildCitationHeaderSummary() {
   const total = citations.length;
   const completed = citations.filter(c => c.status === 'completed').length;
-  if (total === 0) return '추가된 인용발명 없음';
+  if (total === 0) return 'No references added';
 
   const titles = citations
     .map(c => truncateSummaryText(normalizeSummaryText(c.title || c.name || c.url || ''), 28))
     .filter(Boolean);
-  const titleSummary = titles.length > 0 ? titles.join(' | ') : '제목 정보 없음';
+  const titleSummary = titles.length > 0 ? titles.join(' | ') : 'No title/url';
 
-  return `${completed}/${total} 완료 | ${titleSummary}`;
+  return `${completed}/${total} completed | ${titleSummary}`;
 }
 
 function updateInputPanelHeaders() {
   const claimsTitle = document.getElementById('claims-panel-title');
   if (claimsTitle) {
-    claimsTitle.textContent = `청구항 (Claims) · ${claims.length}건`;
+    claimsTitle.textContent = `Claims (${claims.length})`;
   }
 
   const citationsTitle = document.getElementById('citations-panel-title');
   if (citationsTitle) {
-    citationsTitle.textContent = `인용발명 (References) · ${citations.length}건`;
+    citationsTitle.textContent = `References (${citations.length})`;
   }
 
   const claimMeta = document.getElementById('claims-panel-meta');
@@ -326,7 +324,7 @@ function setInputPanelCollapsed(panelType, collapsed) {
   const toggleButton = getInputPanelToggleButton(panelType);
   if (toggleButton) {
     toggleButton.setAttribute('aria-expanded', String(!collapsed));
-    toggleButton.setAttribute('title', collapsed ? '패널 펼치기' : '패널 접기');
+    toggleButton.setAttribute('title', collapsed ? 'Expand panel' : 'Collapse panel');
   }
 }
 
@@ -349,7 +347,7 @@ function setResultPanelCollapsed(collapsed) {
   const toggleButton = document.getElementById('btn-toggle-result-panel');
   if (toggleButton) {
     toggleButton.setAttribute('aria-expanded', String(!collapsed));
-    toggleButton.setAttribute('title', collapsed ? '결과 패널 펼치기' : '결과 패널 접기');
+    toggleButton.setAttribute('title', collapsed ? 'Expand panel' : 'Collapse panel');
   }
 }
 
@@ -401,7 +399,7 @@ function ensureClaimProgressEntry(claimId, claimName = '') {
 function initializeClaimProgress(claimList) {
   claimProgressById = {};
   (claimList || []).forEach((claim, index) => {
-    const entry = ensureClaimProgressEntry(claim.id, claim.name || `청구항 ${index + 1}`);
+    const entry = ensureClaimProgressEntry(claim.id, claim.name || `Claim ${index + 1}`);
     entry.order = index + 1;
   });
   refreshResultClaimSelect(claimList);
@@ -410,7 +408,7 @@ function initializeClaimProgress(claimList) {
 function initializeClaimProgressFromSavedResults(claimList) {
   claimProgressById = {};
   (claimList || []).forEach((claim, index) => {
-    const entry = ensureClaimProgressEntry(claim.id, claim.name || `청구항 ${index + 1}`);
+    const entry = ensureClaimProgressEntry(claim.id, claim.name || `Claim ${index + 1}`);
     entry.order = index + 1;
     const result = analysisResults?.[claim.id];
     if (!result) return;
@@ -425,7 +423,7 @@ function initializeClaimProgressFromSavedResults(claimList) {
 
     entry.status = 'done';
     entry.currentStep = 'E';
-    entry.stepMessage = '완료';
+    entry.stepMessage = 'Completed';
     ANALYSIS_STEPS.forEach(step => {
       entry.steps[step] = 'done';
     });
@@ -504,11 +502,11 @@ function setClaimProgressMessage(claimId, message) {
 }
 
 function getClaimProgressTag(progress) {
-  if (!progress) return '대기';
-  if (progress.status === 'done') return '완료';
-  if (progress.status === 'error') return '오류';
-  if (progress.status === 'running') return `진행:${progress.currentStep || '-'}`;
-  return '대기';
+  if (!progress) return 'Pending';
+  if (progress.status === 'done') return 'Completed';
+  if (progress.status === 'error') return 'Error';
+  if (progress.status === 'running') return `Running ${progress.currentStep || '-'}`;
+  return 'Pending';
 }
 
 function refreshResultClaimSelect(claimList = claims.filter(c => (c.text || '').trim())) {
@@ -548,8 +546,8 @@ function showProgress(stepLabel, index, total, claimName) {
   const detail = `${countText}${nameText}`.trim();
   emptyState.style.display = 'block';
   emptyState.innerHTML = detail
-    ? `${stepLabel} 진행 중...<br>${detail}`
-    : `${stepLabel} 진행 중...`;
+    ? `${stepLabel} in progress...<br>${detail}`
+    : `${stepLabel} in progress...`;
 }
 
 function showParallelProgress(stepLabel, meta, featureId, done, total) {
@@ -557,14 +555,14 @@ function showParallelProgress(stepLabel, meta, featureId, done, total) {
   if (!emptyState) return;
   const countText = meta?.totalClaims ? `(${meta.claimIndex}/${meta.totalClaims})` : '';
   const nameText = meta?.claimName ? ` ${meta.claimName}` : '';
-  const featureLabel = featureId && String(featureId).startsWith('Q') ? '쿼리' : '구성요소';
+  const featureLabel = featureId && String(featureId).startsWith('Q') ? 'Primary claim' : 'Element';
   const featureText = featureId ? ` ${featureLabel} ${featureId}` : '';
   const progressText = total ? ` ${done}/${total}` : '';
   const detail = `${countText}${nameText}${featureText}${progressText}`.trim();
   emptyState.style.display = 'block';
   emptyState.innerHTML = detail
-    ? `${stepLabel} 진행 중...<br>${detail}`
-    : `${stepLabel} 진행 중...`;
+    ? `${stepLabel} in progress...<br>${detail}`
+    : `${stepLabel} in progress...`;
 }
 
 const DEBUG_TREE_OPEN_MODE = {
@@ -688,7 +686,7 @@ function updateDebugClaimSelect() {
   if (claimIds.length === 0) {
     const option = document.createElement('option');
     option.value = '';
-    option.textContent = '(데이터 없음)';
+    option.textContent = '(??⑥щ턄????怨몃쾳)';
     claimSelect.appendChild(option);
     debugState.claimId = null;
     updateDebugLastUpdatedText(null);
@@ -700,7 +698,7 @@ function updateDebugClaimSelect() {
   claimIds.forEach(id => {
     const option = document.createElement('option');
     option.value = id;
-    option.textContent = claimMap.get(String(id))?.name || `청구항 ${id}`;
+    option.textContent = claimMap.get(String(id))?.name || `嶺????${id}`;
     claimSelect.appendChild(option);
   });
 
@@ -780,7 +778,7 @@ function renderDebugContent() {
       payload = null;
   }
 
-  renderDebugPayload(payload, { emptyMessage: '이 탭의 데이터가 없습니다.' });
+  renderDebugPayload(payload, { emptyMessage: '????????⑥щ턄??? ??怨룸????덈펲.' });
 }
 
 function renderStepBView(result, claimId) {
@@ -795,10 +793,10 @@ function renderStepBView(result, claimId) {
   const allEntries = buildStepBEntries(result?.debug?.stepB);
   if (allEntries.length === 0) {
     hideDebugDetailHeader();
-    renderDebugEmptyState('B 단계 데이터가 없습니다.');
+    renderDebugEmptyState('B ??節띉???⑥щ턄??? ??怨룸????덈펲.');
     const empty = document.createElement('div');
     empty.className = 'debug-empty-state';
-    empty.textContent = '쿼리 번들이 없습니다.';
+    empty.textContent = '?臾믩닑???뺢퀡?꾥キ????怨룸????덈펲.';
     queryList.appendChild(empty);
     return;
   }
@@ -806,10 +804,10 @@ function renderStepBView(result, claimId) {
   const filteredEntries = allEntries.filter(entry => isStepBEntryMatchedBySearch(entry, debugUiState.searchTerm));
   if (filteredEntries.length === 0) {
     hideDebugDetailHeader();
-    renderDebugPayload(null, { emptyMessage: '현재 필터에 일치하는 B 단계 항목이 없습니다.' });
+    renderDebugPayload(null, { emptyMessage: '?熬곣뫗???熬곥굤?????源딅뭵??濡ル츎 B ??節띉????????怨룸????덈펲.' });
     const noMatch = document.createElement('div');
     noMatch.className = 'debug-empty-state';
-    noMatch.textContent = '현재 필터에 일치하는 B 단계 항목이 없습니다.';
+    noMatch.textContent = '?熬곣뫗???熬곥굤?????源딅뭵??濡ル츎 B ??節띉????????怨룸????덈펲.';
     queryList.appendChild(noMatch);
     return;
   }
@@ -842,7 +840,7 @@ function renderStepBView(result, claimId) {
 
     const meta = document.createElement('div');
     meta.className = 'debug-query-row-meta';
-    meta.textContent = entry.summary || '(쿼리 없음)';
+    meta.textContent = entry.summary || '(?臾믩닑????怨몃쾳)';
     row.appendChild(meta);
 
     row.addEventListener('click', () => {
@@ -855,7 +853,7 @@ function renderStepBView(result, claimId) {
 
   const selectedEntry = filteredEntries.find(entry => entry.key === selectedKey) || filteredEntries[0];
   showDebugDetailHeader(selectedEntry.label, selectedEntry.summary || '-');
-  renderDebugPayload(selectedEntry.payload, { emptyMessage: '선택한 B 단계 항목의 payload가 없습니다.' });
+  renderDebugPayload(selectedEntry.payload, { emptyMessage: '??ルㅎ臾??B ??節띉??????payload?띠럾? ??怨룸????덈펲.' });
 }
 
 function buildStepBEntries(stepB) {
@@ -867,8 +865,8 @@ function buildStepBEntries(stepB) {
     entries.push({
       key: 'merge',
       kind: 'merge',
-      label: 'B-3 병합',
-      summary: '성공한 쿼리 번들 병합 결과',
+      label: 'B-3 Merge',
+      summary: 'Merged output across all query bundles.',
       ok: true,
       payload: stepB.merge
     });
@@ -886,14 +884,14 @@ function buildStepBEntries(stepB) {
       entries.push({
         key: `bundle-${queryIndex}`,
         kind: 'bundle',
-        label: `번들 ${queryIndex}`,
-        summary: summary || '(쿼리 없음)',
+        label: `?뺢퀡?꾥キ?${queryIndex}`,
+        summary: summary || '(?臾믩닑????怨몃쾳)',
         ok: !!entry?.ok,
         payload: entry?.ok
           ? (entry.result || null)
           : {
             queryIndex,
-            error: entry?.error || '알 수 없는 오류',
+            error: entry?.error || '???????⑸츎 ???댁쾼',
             queries: bundle
           }
       });
@@ -914,14 +912,14 @@ function buildStepBEntries(stepB) {
         key: `feature-${featureId}-${idx + 1}`,
         kind: 'feature',
         label: `${featureId} / Query ${idx + 1}`,
-        summary: queryText || '(쿼리 없음)',
+        summary: queryText || '(?臾믩닑????怨몃쾳)',
         ok: !!entry?.ok,
         payload: entry?.ok
           ? (entry.result || null)
           : {
             featureId,
             queryIndex: idx + 1,
-            error: entry?.error || '알 수 없는 오류',
+            error: entry?.error || '???????⑸츎 ???댁쾼',
             query: queryText
           }
       });
@@ -980,7 +978,7 @@ function updateDebugTabBadges(result) {
     badge.className = `debug-tab-badge ${metrics.badgeClass}`;
     badge.textContent = metrics.badgeText;
     tab.classList.toggle('has-error', metrics.errorCount > 0);
-    tab.title = `${metrics.title} / 업데이트: ${updatedText}`;
+    tab.title = `${metrics.title} / ???낆몥??袁⑤콦: ${updatedText}`;
   });
 }
 
@@ -991,7 +989,7 @@ function getDebugTabMetrics(tabId, result) {
       errorCount: 0,
       badgeClass: 'none',
       badgeText: 'NONE',
-      title: '데이터 없음'
+      title: '??⑥щ턄????怨몃쾳'
     };
   }
 
@@ -1049,8 +1047,8 @@ function getDebugTabMetrics(tabId, result) {
   }
 
   const title = errorCount > 0
-    ? `데이터: ${hasData ? '있음' : '없음'} / 오류: ${errorCount}`
-    : `데이터: ${hasData ? '있음' : '없음'}`;
+    ? `??⑥щ턄?? ${hasData ? '???깅쾳' : '??怨몃쾳'} / ???댁쾼: ${errorCount}`
+    : `??⑥щ턄?? ${hasData ? '???깅쾳' : '??怨몃쾳'}`;
 
   return {
     hasData,
@@ -1073,8 +1071,8 @@ function renderDebugClaimSummary(claimId, result) {
   }
 
   const claim = claims.find(item => String(item.id) === String(claimId));
-  const claimName = claim?.name || `청구항 ${claimId}`;
-  const modeLabel = isQuickDebugResult(result) ? '빠른 분석' : '정밀 분석';
+  const claimName = claim?.name || `Claim ${claimId}`;
+  const modeLabel = isQuickDebugResult(result) ? 'Quick' : 'Deep';
   const progress = claimProgressById?.[String(claimId)] || null;
   const updatedText = formatDebugTimestamp(progress?.updatedAt || null);
 
@@ -1099,9 +1097,13 @@ function renderDebugClaimSummary(claimId, result) {
 
   DEBUG_STEP_SEQUENCE.forEach(stepId => {
     const state = getDebugStepState(claimId, result, stepId);
+    const durationMs = getDebugStepDurationMs(result, stepId);
+    const durationText = formatDebugStepDuration(durationMs);
     const chip = document.createElement('span');
     chip.className = `debug-claim-step-chip ${state}`;
-    chip.textContent = `${stepId}: ${formatDebugStepStateLabel(state)}`;
+    chip.textContent = durationText
+      ? `${stepId}: ${formatDebugStepStateLabel(state)} | ${durationText}`
+      : `${stepId}: ${formatDebugStepStateLabel(state)}`;
     steps.appendChild(chip);
   });
 
@@ -1116,16 +1118,74 @@ function isQuickDebugResult(result) {
   return !!(result?.debug?.quick || result?.debug?.quickError);
 }
 
+function getDebugStepTiming(result, stepId) {
+  const timings = result?.debug?.stepTimings;
+  if (!timings || typeof timings !== 'object' || Array.isArray(timings)) return null;
+
+  const timing = timings[stepId];
+  if (!timing || typeof timing !== 'object' || Array.isArray(timing)) return null;
+
+  return timing;
+}
+
+function normalizeDebugStepTimingStatus(result, stepId) {
+  const status = String(getDebugStepTiming(result, stepId)?.status || '').trim().toLowerCase();
+  if (
+    status === 'active'
+    || status === 'done'
+    || status === 'error'
+    || status === 'pending'
+    || status === 'skipped'
+  ) {
+    return status;
+  }
+  return null;
+}
+
+function getDebugStepDurationMs(result, stepId) {
+  const timing = getDebugStepTiming(result, stepId);
+  if (!timing) return null;
+
+  if (Number.isFinite(timing.durationMs) && timing.durationMs >= 0) {
+    return timing.durationMs;
+  }
+
+  if (timing.status === 'active' && Number.isFinite(timing.startedAt)) {
+    return Math.max(0, Date.now() - timing.startedAt);
+  }
+
+  return null;
+}
+
+function formatDebugStepDuration(durationMs) {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return null;
+  if (durationMs < 1000) return `${Math.round(durationMs)}ms`;
+
+  const seconds = durationMs / 1000;
+  if (seconds < 10) return `${seconds.toFixed(1)}s`;
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+
+  const roundedSeconds = Math.round(seconds);
+  const minutes = Math.floor(roundedSeconds / 60);
+  const remainSeconds = roundedSeconds % 60;
+  return `${minutes}m ${String(remainSeconds).padStart(2, '0')}s`;
+}
+
 function getDebugStepState(claimId, result, stepId) {
   const progress = claimProgressById?.[String(claimId)] || null;
   const progressState = progress?.steps?.[stepId];
+  const timingStatus = normalizeDebugStepTimingStatus(result, stepId);
 
-  if (stepId === 'D' && result?.debug?.stepD?.skipped) {
+  if (stepId === 'D' && (result?.debug?.stepD?.skipped || timingStatus === 'skipped')) {
     return 'skipped';
   }
 
   if (progressState === 'active' || progressState === 'done' || progressState === 'error' || progressState === 'pending') {
     return progressState;
+  }
+
+  if (timingStatus) {
+    return timingStatus;
   }
 
   const debug = result?.debug || {};
@@ -1150,6 +1210,7 @@ function getDebugStepState(claimId, result, stepId) {
       if (debug.stepD || isQuick) return 'done';
       return 'pending';
     case 'E':
+      if (debug.stepEError) return 'error';
       if (Object.keys(result?.verifications || {}).length > 0 || isQuick) return 'done';
       return 'pending';
     default:
@@ -1160,15 +1221,15 @@ function getDebugStepState(claimId, result, stepId) {
 function formatDebugStepStateLabel(state) {
   switch (state) {
     case 'done':
-      return '완료';
+      return 'Completed';
     case 'active':
-      return '진행';
+      return 'Running';
     case 'error':
-      return '오류';
+      return 'Error';
     case 'skipped':
-      return '건너뜀';
+      return 'Skipped';
     default:
-      return '대기';
+      return 'Pending';
   }
 }
 
@@ -1177,13 +1238,13 @@ function updateDebugLastUpdatedText(claimId) {
   if (!target) return;
 
   if (claimId === null || claimId === undefined) {
-    target.textContent = '업데이트: -';
+    target.textContent = 'Last updated: -';
     return;
   }
 
   const progress = claimProgressById?.[String(claimId)] || null;
   const updatedText = formatDebugTimestamp(progress?.updatedAt || null);
-  target.textContent = `업데이트: ${updatedText}`;
+  target.textContent = `Last updated: ${updatedText}`;
 }
 
 function formatDebugTimestamp(timestamp) {
@@ -1224,7 +1285,7 @@ function renderDebugPayload(payload, options = {}) {
   content.innerHTML = '';
 
   if (payload === null || payload === undefined) {
-    renderDebugEmptyState(options.emptyMessage || '디버그 payload가 없습니다.');
+    renderDebugEmptyState(options.emptyMessage || '??븐뼚?붷윜?payload?띠럾? ??怨룸????덈펲.');
     return;
   }
 
@@ -1271,8 +1332,8 @@ function renderDebugPayload(payload, options = {}) {
     const noMatch = document.createElement('div');
     noMatch.className = 'debug-tree-no-match';
     noMatch.textContent = searchTerm
-      ? '현재 필터에 일치하는 key/path/value가 없습니다.'
-      : (options.emptyMessage || '디버그 payload가 없습니다.');
+      ? '?熬곣뫗???熬곥굤?????源딅뭵??濡ル츎 key/path/value?띠럾? ??怨룸????덈펲.'
+      : (options.emptyMessage || '??븐뼚?붷윜?payload?띠럾? ??怨룸????덈펲.');
     content.appendChild(noMatch);
     return;
   }
@@ -1418,7 +1479,7 @@ function createDebugCopyButton(path) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'debug-tree-copy';
-  button.textContent = '경로 복사';
+  button.textContent = 'Copy path';
 
   button.addEventListener('click', (e) => {
     e.preventDefault();
@@ -1436,7 +1497,7 @@ function copyDebugPath(path, button) {
     .then(() => {
       if (!button) return;
       const previous = button.textContent;
-      button.textContent = '복사됨';
+      button.textContent = 'Copied';
       window.setTimeout(() => {
         button.textContent = previous;
       }, 900);
@@ -1542,15 +1603,15 @@ function updateInputSummary() {
     const totalClaims = claims.length;
     const filledClaims = claims.filter(c => c.text && c.text.trim()).length;
     claimSummary.innerHTML = `
-      <div class="summary-title">청구항 요약</div>
+      <div class="summary-title">Claims Summary</div>
       <div class="summary-row">
-        <span>입력 완료</span>
+        <span>Filled claims</span>
         <strong>${filledClaims}/${totalClaims}</strong>
       </div>
-      <div class="summary-meta">마지막 분석: ${meta.lastRunText}</div>
+      <div class="summary-meta">Last run: ${meta.lastRunText}</div>
       <div class="summary-chips">
-        <span class="summary-chip">총 ${totalClaims}개</span>
-        <span class="summary-chip">입력완료 ${filledClaims}개</span>
+        <span class="summary-chip">Total ${totalClaims}</span>
+        <span class="summary-chip">Filled ${filledClaims}</span>
       </div>
     `;
   }
@@ -1563,17 +1624,17 @@ function updateInputSummary() {
     const failed = citations.filter(c => c.status === 'failed').length;
 
     citationSummary.innerHTML = `
-      <div class="summary-title">인용발명 요약</div>
+      <div class="summary-title">References Summary</div>
       <div class="summary-row">
-        <span>업로드 상태</span>
+        <span>Completed references</span>
         <strong>${completed}/${total}</strong>
       </div>
-      <div class="summary-meta">최근 진행: ${meta.stepText}</div>
+      <div class="summary-meta">Last step: ${meta.stepText}</div>
       <div class="summary-chips">
-        <span class="summary-chip">총 ${total}개</span>
-        <span class="summary-chip">완료 ${completed}개</span>
-        <span class="summary-chip">처리 중 ${processing}개</span>
-        <span class="summary-chip">실패 ${failed}개</span>
+        <span class="summary-chip">Total ${total}</span>
+        <span class="summary-chip">Completed ${completed}</span>
+        <span class="summary-chip">In progress ${processing}</span>
+        <span class="summary-chip">Failed ${failed}</span>
       </div>
     `;
   }
@@ -1584,8 +1645,8 @@ function updateInputSummary() {
 function getAnalysisMeta() {
   const lastRun = localStorage.getItem('analysisLastRunAt');
   const lastStep = localStorage.getItem('analysisLastStep');
-  const lastRunText = lastRun ? new Date(lastRun).toLocaleString() : '없음';
-  const stepText = lastStep || '대기 중';
+  const lastRunText = lastRun ? new Date(lastRun).toLocaleString() : 'No run';
+  const stepText = lastStep || 'No step';
   return { lastRunText, stepText };
 }
 
@@ -1593,6 +1654,105 @@ function normalizeParagraphLookupKey(value) {
   const match = String(value || '').match(/\d{1,6}/);
   if (!match) return null;
   return `[${String(match[0]).padStart(4, '0')}]`;
+}
+
+function parseParagraphNumberFromKey(value) {
+  const normalized = normalizeParagraphLookupKey(value);
+  if (!normalized) return null;
+  const matched = normalized.match(/\d{1,6}/);
+  if (!matched) return null;
+  const number = Number.parseInt(matched[0], 10);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatParagraphNumberKey(value) {
+  const number = Number.parseInt(value, 10);
+  if (!Number.isFinite(number)) return null;
+  return `[${String(number).padStart(4, '0')}]`;
+}
+
+function parseParagraphKeyRange(rawValue) {
+  const text = String(rawValue || '').trim();
+  if (!text) return null;
+
+  const rangeMatch = text.match(/^\[(\d{1,6})\]\s*-\s*\[(\d{1,6})\]$/);
+  if (rangeMatch) {
+    const start = Number.parseInt(rangeMatch[1], 10);
+    const end = Number.parseInt(rangeMatch[2], 10);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    const normalizedStart = Math.min(start, end);
+    const normalizedEnd = Math.max(start, end);
+    const startKey = formatParagraphNumberKey(normalizedStart);
+    const endKey = formatParagraphNumberKey(normalizedEnd);
+    if (!startKey || !endKey) return null;
+    return {
+      isRange: true,
+      start: normalizedStart,
+      end: normalizedEnd,
+      label: `${startKey}-${endKey}`
+    };
+  }
+
+  const key = normalizeParagraphLookupKey(text);
+  if (!key) return null;
+  const number = parseParagraphNumberFromKey(key);
+  if (!Number.isFinite(number)) return null;
+  return {
+    isRange: false,
+    start: number,
+    end: number,
+    label: key
+  };
+}
+
+function findParagraphEntriesInRange(paragraphs, start, end) {
+  if (!paragraphs || typeof paragraphs !== 'object') return [];
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return [];
+
+  const byNumber = new Map();
+  Object.entries(paragraphs).forEach(([rawKey, rawValue]) => {
+    const number = parseParagraphNumberFromKey(rawKey);
+    if (!Number.isFinite(number)) return;
+    if (number < start || number > end) return;
+    const text = String(rawValue || '').trim();
+    if (!text) return;
+    if (!byNumber.has(number)) {
+      byNumber.set(number, {
+        key: formatParagraphNumberKey(number) || normalizeParagraphLookupKey(rawKey) || String(rawKey || '').trim(),
+        text
+      });
+    }
+  });
+
+  const rows = [];
+  for (let number = start; number <= end; number += 1) {
+    const hit = byNumber.get(number);
+    if (hit) rows.push(hit);
+  }
+  return rows;
+}
+
+function buildParagraphRangeContent(entries, rangeInfo) {
+  if (!Array.isArray(entries) || entries.length === 0) return '';
+
+  const lines = entries.map((entry) => `${entry.key}\n${entry.text}`);
+  if (!rangeInfo || !rangeInfo.isRange) {
+    return lines.join('\n\n');
+  }
+
+  const missing = [];
+  for (let number = rangeInfo.start; number <= rangeInfo.end; number += 1) {
+    const exists = entries.some((entry) => parseParagraphNumberFromKey(entry.key) === number);
+    if (!exists) {
+      const key = formatParagraphNumberKey(number);
+      if (key) missing.push(key);
+    }
+  }
+
+  if (missing.length > 0) {
+    lines.push(`[Missing]\n${missing.join(', ')}`);
+  }
+  return lines.join('\n\n');
 }
 
 function findCitationByDocName(docName) {
@@ -1649,40 +1809,80 @@ function findParagraphTextByKey(paragraphs, paragraphKey) {
   return { key: matchedKey, text };
 }
 
-function openPositionModal(docName, paragraphKey) {
+function getPositionModalSummaryText(relatedContent) {
+  const text = String(relatedContent || '').trim();
+  return text || '\uAD00\uB828 \uB0B4\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.';
+}
+
+function renderPositionModalBody(summaryText, sourceText) {
+  const summaryEl = document.getElementById('position-modal-summary');
+  const sourceEl = document.getElementById('position-modal-source');
+  if (!summaryEl || !sourceEl) return false;
+
+  summaryEl.textContent = String(summaryText || '').trim() || '\uAD00\uB828 \uB0B4\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.';
+  sourceEl.textContent = String(sourceText || '').trim() || '\uC6D0\uBB38 \uB0B4\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.';
+  return true;
+}
+
+function setPositionModalBody(summaryText, sourceText, fallbackContentEl) {
+  const hasStructuredBody = renderPositionModalBody(summaryText, sourceText);
+  if (hasStructuredBody) return;
+
+  if (!fallbackContentEl) return;
+  const safeSummary = String(summaryText || '').trim() || '\uAD00\uB828 \uB0B4\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.';
+  const safeSource = String(sourceText || '').trim() || '\uC6D0\uBB38 \uB0B4\uC6A9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.';
+  fallbackContentEl.textContent = `\uC694\uC57D\uB0B4\uC6A9\n${safeSummary}\n\n\uC6D0\uBB38\n${safeSource}`;
+}
+
+function openPositionModal(docName, paragraphKey, relatedContent = '') {
   const titleEl = document.getElementById('position-modal-title');
   const contentEl = document.getElementById('position-modal-content');
   if (!titleEl || !contentEl) return;
 
-  const normalizedKey = normalizeParagraphLookupKey(paragraphKey) || String(paragraphKey || '').trim();
+  const summaryText = getPositionModalSummaryText(relatedContent);
+  const rangeInfo = parseParagraphKeyRange(paragraphKey);
+  const normalizedKey = rangeInfo?.label || normalizeParagraphLookupKey(paragraphKey) || String(paragraphKey || '').trim();
   const citation = findCitationByDocName(docName);
-  titleEl.textContent = `${docName || '문헌'} ${normalizedKey || ''} 문단`;
+  titleEl.textContent = `${docName || 'Document'} ${normalizedKey || ''} paragraph`;
 
   if (!citation) {
-    contentEl.textContent = '해당 인용발명을 찾지 못했습니다.';
+    setPositionModalBody(summaryText, 'Citation document not found.', contentEl);
     openDialogModal('position-modal', '#btn-close-position-modal');
     return;
   }
 
   const paragraphs = parseCitationParagraphs(citation);
   if (!paragraphs) {
-    contentEl.textContent = '이 인용발명에는 문단 JSON(paragraphs) 데이터가 없습니다.';
+    setPositionModalBody(summaryText, 'This citation does not contain paragraph JSON data.', contentEl);
+    openDialogModal('position-modal', '#btn-close-position-modal');
+    return;
+  }
+
+  if (rangeInfo?.isRange) {
+    const entries = findParagraphEntriesInRange(paragraphs, rangeInfo.start, rangeInfo.end);
+    if (entries.length === 0) {
+      setPositionModalBody(summaryText, `Range ${rangeInfo.label} was not found in source paragraphs.`, contentEl);
+      openDialogModal('position-modal', '#btn-close-position-modal');
+      return;
+    }
+
+    titleEl.textContent = `${docName || citation.name || 'Document'} ${rangeInfo.label} paragraph range`;
+    setPositionModalBody(summaryText, buildParagraphRangeContent(entries, rangeInfo), contentEl);
     openDialogModal('position-modal', '#btn-close-position-modal');
     return;
   }
 
   const found = findParagraphTextByKey(paragraphs, normalizedKey);
   if (!found) {
-    contentEl.textContent = `${normalizedKey || paragraphKey} 문단을 원문에서 찾지 못했습니다.`;
+    setPositionModalBody(summaryText, `${normalizedKey || paragraphKey} paragraph was not found in source paragraphs.`, contentEl);
     openDialogModal('position-modal', '#btn-close-position-modal');
     return;
   }
 
-  titleEl.textContent = `${docName || citation.name} ${found.key} 문단`;
-  contentEl.textContent = found.text;
+  titleEl.textContent = `${docName || citation.name || 'Document'} ${found.key} paragraph`;
+  setPositionModalBody(summaryText, found.text, contentEl);
   openDialogModal('position-modal', '#btn-close-position-modal');
 }
-
 function closePositionModal() {
   closeDialogModal('position-modal');
 }
@@ -1697,3 +1897,4 @@ function openVerificationModal(reason) {
 function closeVerificationModal() {
   closeDialogModal('verification-modal');
 }
+

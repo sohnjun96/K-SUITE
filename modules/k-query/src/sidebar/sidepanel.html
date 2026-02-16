@@ -9,13 +9,6 @@
   </head>
   <body>
     <div class="app">
-      <nav class="ksuite-nav" aria-label="K-SUITE app navigation">
-        <a class="ksuite-nav-link" href="../../../../suite/popup.html">K-SUITE Home</a>
-        <a class="ksuite-nav-link" href="#" data-launch-module="k-larc">K-LARC</a>
-        <a class="ksuite-nav-link active" href="#" data-launch-module="k-query">K-Query</a>
-        <a class="ksuite-nav-link" href="#" data-launch-module="k-scan">K-SCAN</a>
-      </nav>
-
       <header class="hero reveal" style="animation-delay: 0s;">
         <div class="hero-main">
           <div class="logo-mark" aria-hidden="true">
@@ -56,6 +49,7 @@
               <div class="meta-actions">
                 <button id="sampleBtn" class="btn ghost tiny" type="button">샘플 넣기</button>
                 <button id="clearInputBtn" class="btn ghost tiny" type="button">입력 지우기</button>
+                <button id="mockModeBtn" class="btn ghost tiny" type="button" aria-pressed="true">Mock: ON</button>
               </div>
             </div>
             <ul class="hint-list">
@@ -147,6 +141,13 @@
             </div>
             <button id="resetEditorBtn" class="btn ghost small" type="button">원본 복원</button>
           </div>
+          <div class="editor-controls">
+            <label class="editor-toggle" for="coreSynonymToggle">
+              <input id="coreSynonymToggle" type="checkbox" checked />
+              <span>Core synonym lock</span>
+            </label>
+            <span id="coreSynonymState" class="editor-toggle-state">ON</span>
+          </div>
           <div id="synonymEditor" class="synonym-editor">
             <div class="synonym-empty">검색식 생성 후 표시됩니다.</div>
           </div>
@@ -183,7 +184,6 @@
 
     <script src="../../../../suite/shared-constants.js"></script>
     <script src="../../../../suite/shared-feedback.js"></script>
-    <script src="../../../../suite/app-nav.js"></script>
     <script type="module" src="./sidepanel.js"></script>
     <div class="modal is-hidden" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
       <div class="modal-overlay" data-modal-close></div>
@@ -197,4 +197,3 @@
     </div>
   </body>
 </html>
-

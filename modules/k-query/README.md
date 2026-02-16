@@ -1,4 +1,4 @@
-﻿# K-Query
+# K-Query
 
 검색어 생성 AI 툴입니다.
 

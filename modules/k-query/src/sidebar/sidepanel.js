@@ -9,6 +9,7 @@ const claimInput = document.getElementById("claimInput");
 const claimCount = document.getElementById("claimCount");
 const sampleButton = document.getElementById("sampleBtn");
 const clearInputButton = document.getElementById("clearInputBtn");
+const mockModeButton = document.getElementById("mockModeBtn");
 const logDiv = document.getElementById("log");
 const devLogDiv = document.getElementById("devLog");
 const layerSummary = document.getElementById("layerSummary");
@@ -30,6 +31,9 @@ const resetEditorButton = document.getElementById("resetEditorBtn");
 const breadthSlider = document.getElementById("breadthSlider");
 const breadthLabel = document.getElementById("breadthLabel");
 const queryPreview = document.getElementById("queryPreview");
+const coreSynonymToggle = document.getElementById("coreSynonymToggle");
+const coreSynonymState = document.getElementById("coreSynonymState");
+const editorNote = document.querySelector("#synonymEditorCard .editor-note");
 
 const summaryItems = new Map();
 const stepMap = new Map(statusSteps.map((step) => [step.dataset.layer, step]));
@@ -43,6 +47,8 @@ const LAYER_LABELS = {
 let currentLayer = null;
 const PANEL_STORAGE_KEY = "sidepanelState";
 const PANEL_STORAGE_VERSION = 1;
+const MOCK_MODE_DEFAULT = true;
+const CORE_SYNONYM_LOCK_DEFAULT = true;
 const logEntries = [];
 const devEntries = [];
 let isRestoring = false;
@@ -55,6 +61,8 @@ let lastGeneratedQuery = "";
 const selectedSynonymsById = new Map();
 const BREADTH_DEFAULT = 40;
 let isPipelineRunning = false;
+let mockModeEnabled = MOCK_MODE_DEFAULT;
+let coreSynonymLockEnabled = CORE_SYNONYM_LOCK_DEFAULT;
 
 const SAMPLE_CLAIM = "제1 면에 배치되는 플렉서블 디스플레이 및 상기 디스플레이의 벤딩을 감지하는 센서부를 포함하는 장치.";
 const INFO_CONTENT = {
@@ -86,9 +94,42 @@ function getTimestamp() {
 
 function updateClaimMeta() {
   if (!claimInput || !claimCount) return;
-  claimCount.textContent = `${claimInput.value.length}자`;
+  claimCount.textContent = `${claimInput.value.length} chars`;
 }
 
+function setMockMode(enabled, { persist = true } = {}) {
+  mockModeEnabled = !!enabled;
+  if (mockModeButton) {
+    mockModeButton.textContent = mockModeEnabled ? "Mock: ON" : "Mock: OFF";
+    mockModeButton.setAttribute("aria-pressed", mockModeEnabled ? "true" : "false");
+    mockModeButton.dataset.state = mockModeEnabled ? "on" : "off";
+  }
+  if (persist) scheduleStateSave();
+}
+
+function refreshCoreSynonymUiState() {
+  if (coreSynonymToggle instanceof HTMLInputElement) {
+    coreSynonymToggle.checked = coreSynonymLockEnabled;
+  }
+  if (coreSynonymState) {
+    coreSynonymState.textContent = coreSynonymLockEnabled ? "ON" : "OFF";
+  }
+  if (editorNote) {
+    editorNote.textContent = coreSynonymLockEnabled
+      ? "Core synonym lock is ON. Base term is always included."
+      : "Core synonym lock is OFF. Base term can be disabled.";
+  }
+}
+
+function setCoreSynonymLock(enabled, { persist = true, rebuild = true } = {}) {
+  coreSynonymLockEnabled = !!enabled;
+  refreshCoreSynonymUiState();
+  if (persist) scheduleStateSave();
+  if (rebuild && lastArtifacts) {
+    applyEditorSelectionToQuery();
+    renderSynonymEditor();
+  }
+}
 function setModeBadge(mode) {
   currentMode = mode || null;
   if (!modeBadge) return;
@@ -194,6 +235,8 @@ async function persistPanelState() {
     devEntries,
     status: buildStatusSnapshot(),
     activeLogTab,
+    mockModeEnabled,
+    coreSynonymLockEnabled,
     breadthValue: getBreadthValue()
   };
 
@@ -213,6 +256,16 @@ async function restorePanelState() {
     if (!snapshot || snapshot.version !== PANEL_STORAGE_VERSION) return false;
 
     clearLogs({ persist: false });
+    if (typeof snapshot.mockModeEnabled === "boolean") {
+      setMockMode(snapshot.mockModeEnabled, { persist: false });
+    } else {
+      setMockMode(MOCK_MODE_DEFAULT, { persist: false });
+    }
+    if (typeof snapshot.coreSynonymLockEnabled === "boolean") {
+      setCoreSynonymLock(snapshot.coreSynonymLockEnabled, { persist: false, rebuild: false });
+    } else {
+      setCoreSynonymLock(CORE_SYNONYM_LOCK_DEFAULT, { persist: false, rebuild: false });
+    }
     if (typeof snapshot.claimText === "string") claimInput.value = snapshot.claimText;
     if (typeof snapshot.resultText === "string") resultOutput.value = snapshot.resultText;
     updateClaimMeta();
@@ -587,20 +640,20 @@ function relaxPhraseMatch(item, relax) {
   return { ...rest };
 }
 
-function applyBreadthToSynonyms(items, element, breadthValue) {
+function applyBreadthToSynonyms(items, element, breadthValue, { forceBase = true } = {}) {
   if (!Array.isArray(items) || items.length === 0) return [];
   const ratio = 1 - Math.min(Math.max(breadthValue, 0), 100) / 100;
   const keepCount = Math.min(items.length, Math.max(1, Math.round(items.length * ratio)));
   const relaxPhrase = breadthValue <= 30;
   const kept = [];
-  const hasBase = items.some((item) => isBaseSynonym(item, element));
+  const hasBase = forceBase && items.some((item) => isBaseSynonym(item, element));
   if (hasBase) {
     const baseItem = items.find((item) => isBaseSynonym(item, element));
     if (baseItem) kept.push(baseItem);
   }
   for (const item of items) {
     if (kept.length >= keepCount) break;
-    if (isBaseSynonym(item, element)) continue;
+    if (forceBase && isBaseSynonym(item, element)) continue;
     kept.push(item);
   }
   return kept.map((item) => relaxPhraseMatch(item, relaxPhrase));
@@ -628,11 +681,16 @@ function buildFilteredSynonymsById() {
     const synonyms = lastArtifacts.synonymsById?.[element.id] || [];
     const selected = selectedSynonymsById.get(element.id) || new Set();
     const pool = synonyms.filter((item) => {
-      if (isBaseSynonym(item, element)) return true;
       const key = normalizeSynonymKey(item);
-      return key && selected.has(key);
+      if (!key) return false;
+      if (isBaseSynonym(item, element)) {
+        return coreSynonymLockEnabled || selected.has(key);
+      }
+      return selected.has(key);
     });
-    filteredSynonymsById[element.id] = applyBreadthToSynonyms(pool, element, breadthValue);
+    filteredSynonymsById[element.id] = applyBreadthToSynonyms(pool, element, breadthValue, {
+      forceBase: coreSynonymLockEnabled
+    });
   });
   return filteredSynonymsById;
 }
@@ -708,9 +766,12 @@ function renderSynonymEditor() {
     const selected = selectedSynonymsById.get(element.id) || new Set();
     const totalCount = synonyms.length;
     const selectedCount = synonyms.filter((item) => {
-      if (isBaseSynonym(item, element)) return true;
       const key = normalizeSynonymKey(item);
-      return key && selected.has(key);
+      if (!key) return false;
+      if (isBaseSynonym(item, element)) {
+        return coreSynonymLockEnabled || selected.has(key);
+      }
+      return selected.has(key);
     }).length;
 
     const row = document.createElement("div");
@@ -762,14 +823,16 @@ function renderSynonymEditor() {
     } else {
       synonyms.forEach((item) => {
         const key = normalizeSynonymKey(item);
+        if (!key) return;
         const isBase = isBaseSynonym(item, element);
+        const isForcedBase = isBase && coreSynonymLockEnabled;
         const label = document.createElement("label");
-        label.className = `synonym-chip${isBase ? " is-disabled" : ""}`;
+        label.className = `synonym-chip${isForcedBase ? " is-disabled" : ""}`;
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.checked = isBase ? true : selected.has(key);
-        checkbox.disabled = isBase || disableInputs;
+        checkbox.checked = isForcedBase ? true : selected.has(key);
+        checkbox.disabled = isForcedBase || disableInputs;
         checkbox.dataset.elementId = element.id;
         checkbox.dataset.synKey = key;
         checkbox.addEventListener("change", handleSynonymToggle);
@@ -783,7 +846,7 @@ function renderSynonymEditor() {
         if (isBase) {
           const pill = document.createElement("span");
           pill.className = "synonym-pill";
-          pill.textContent = "필수";
+          pill.textContent = coreSynonymLockEnabled ? "required" : "core";
           label.appendChild(pill);
         } else if (item && typeof item === "object" && String(item.match || "").toLowerCase() === "phrase") {
           const pill = document.createElement("span");
@@ -1076,7 +1139,7 @@ async function rerunLayer(layerKey) {
     return;
   }
 
-  const options = { startLayer: layerKey };
+  const options = { startLayer: layerKey, mockMode: mockModeEnabled };
   if (layerKey === "Layer 2" || layerKey === "Layer 3") {
     options.elements = lastArtifacts.elements;
     options.relations = lastArtifacts.relations;
@@ -1109,6 +1172,7 @@ async function rerunLayer(layerKey) {
 }
 
 async function ensureSharedKeyAvailable() {
+  if (mockModeEnabled) return;
   const data = await chrome.storage.local.get("ksuiteSharedApiKey");
   const key = String(data.ksuiteSharedApiKey || "").trim();
   if (!key) {
@@ -1139,6 +1203,28 @@ if (clearInputButton && claimInput) {
     updateClaimMeta();
     scheduleStateSave();
     claimInput.focus();
+  });
+}
+
+if (mockModeButton) {
+  mockModeButton.addEventListener("click", async () => {
+    const next = !mockModeEnabled;
+    setMockMode(next);
+    appendProgressLine(next ? "Mock mode enabled." : "Mock mode disabled.");
+    if (!next) {
+      await ensureSharedKeyAvailable();
+    }
+  });
+}
+
+if (coreSynonymToggle instanceof HTMLInputElement) {
+  coreSynonymToggle.addEventListener("change", () => {
+    setCoreSynonymLock(coreSynonymToggle.checked);
+    appendProgressLine(
+      coreSynonymLockEnabled
+        ? "Core synonym lock enabled: base term forced."
+        : "Core synonym lock disabled: base term can be removed."
+    );
   });
 }
 
@@ -1242,7 +1328,7 @@ generateButton.addEventListener("click", async () => {
   setLoading(true);
 
   try {
-    const result = await runPipeline(claim, handleLog);
+    const result = await runPipeline(claim, handleLog, { mockMode: mockModeEnabled });
     resultOutput.value = result;
     lastGeneratedQuery = result;
     scheduleStateSave();
@@ -1259,6 +1345,8 @@ generateButton.addEventListener("click", async () => {
 
 async function initialize() {
   isRestoring = true;
+  setMockMode(MOCK_MODE_DEFAULT, { persist: false });
+  setCoreSynonymLock(CORE_SYNONYM_LOCK_DEFAULT, { persist: false, rebuild: false });
   await ensureSharedKeyAvailable();
   await restorePanelState();
   isRestoring = false;

@@ -1,3 +1,9 @@
+[Output Controls]
+- output_language: {{output_language}}
+- strict_mode: {{strict_mode}}
+- Use {{output_language}} for all natural-language text.
+- If {{strict_mode}} is true, follow schema and format rules strictly.
+- If {{strict_mode}} is false, prioritize useful output while keeping valid format.
 Role: 특허 검색식 품질 관리자(Quality Assurance Specialist)
 Task: 여러 AI 모델이 생성한 '유의어 확장 결과'를 취합 및 평가하여, 최적의 '최종 리스트'를 만들고 모델별 성능을 JSON으로 평가하세요.
 

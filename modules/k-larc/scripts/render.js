@@ -12,17 +12,18 @@ function renderResultClaimStepIndicator(claimId, data, progress) {
     return;
   }
 
-  // 진행 상세 메시지는 empty-state 영역에서만 보여주고, 상단 텍스트는 숨긴다.
+
+  // Keep step details in the empty-state area and hide top text.
   text.textContent = '';
   text.classList.add('hidden');
   indicator.innerHTML = '';
 
   const stepLabels = {
-    A: 'A단계: 구성요소',
-    B: 'B단계: 멀티쿼리 RAG',
-    C: 'C단계: 멀티-저지',
-    D: 'D단계: 리페어',
-    E: 'E단계: 검증'
+    A: 'A\uB2E8\uACC4: \uAD6C\uC131\uC694\uC18C',
+    B: 'B\uB2E8\uACC4: \uBA40\uD2F0\uCFFC\uB9AC RAG',
+    C: 'C\uB2E8\uACC4: \uBA40\uD2F0\uD310\uC815',
+    D: 'D\uB2E8\uACC4: \uB9AC\uD398\uC5B4',
+    E: 'E\uB2E8\uACC4: \uAC80\uC99D'
   };
 
   ANALYSIS_STEPS.forEach(stepId => {
@@ -41,7 +42,7 @@ function renderResultClaimStepIndicator(claimId, data, progress) {
 
     const label = document.createElement('span');
     label.className = 'step-label';
-    label.textContent = stepLabels[stepId] || `${stepId}단계`;
+    label.textContent = stepLabels[stepId] || `${stepId}\uB2E8\uACC4`;
 
     item.appendChild(dot);
     item.appendChild(label);
@@ -74,12 +75,168 @@ function ensureMockRelevantRows(data) {
   return generated;
 }
 
+function getFeatureOrderValue(featureId) {
+  const matched = String(featureId || '').match(/\d+/);
+  if (!matched) return Number.MAX_SAFE_INTEGER;
+  return Number.parseInt(matched[0], 10);
+}
+
+function sortClaimFeaturesForSummary(claimFeatures) {
+  return [...(claimFeatures || [])].sort((a, b) => {
+    const aOrder = getFeatureOrderValue(a?.Id);
+    const bOrder = getFeatureOrderValue(b?.Id);
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return String(a?.Id || '').localeCompare(String(b?.Id || ''), 'ko');
+  });
+}
+
+function getDocLabelOrderValue(docLabel) {
+  const matched = String(docLabel || '').match(/^D(\d+)$/i);
+  if (!matched) return Number.MAX_SAFE_INTEGER;
+  return Number.parseInt(matched[1], 10);
+}
+
+function getSummaryDocLabel(docName, fallbackIndex) {
+  const raw = String(docName || '').trim();
+  if (!raw) return `D${fallbackIndex + 1}`;
+
+  const dMatch = raw.match(/^D\s*0*(\d+)$/i);
+  if (dMatch) return `D${Number.parseInt(dMatch[1], 10)}`;
+
+  const numMatch = raw.match(/(\d+)/);
+  if (numMatch) return `D${Number.parseInt(numMatch[1], 10)}`;
+
+  return `D${fallbackIndex + 1}`;
+}
+
+function sortDocNamesForSummary(docNames) {
+  const mapped = (docNames || []).map((docName, index) => ({
+    docName,
+    fallbackIndex: index,
+    label: getSummaryDocLabel(docName, index)
+  }));
+
+  mapped.sort((a, b) => {
+    const aOrder = getDocLabelOrderValue(a.label);
+    const bOrder = getDocLabelOrderValue(b.label);
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return String(a.docName || '').localeCompare(String(b.docName || ''), 'ko');
+  });
+
+  return mapped;
+}
+
+function getFeatureDocSummaryStatus(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return { label: '-', className: 'is-none' };
+  }
+
+  const hasExplicit = entries.some(entry =>
+    getMatchTypePresentation(entry?.MatchType).matchClass === 'match-explicit'
+  );
+  if (hasExplicit) {
+    return { label: MATCH_LABEL_EXPLICIT, className: 'is-explicit' };
+  }
+
+  const hasEquivalent = entries.some(entry =>
+    getMatchTypePresentation(entry?.MatchType).matchClass === 'match-equivalent'
+  );
+  if (hasEquivalent) {
+    return { label: MATCH_LABEL_EQUIVALENT, className: 'is-equivalent' };
+  }
+
+  return { label: '-', className: 'is-none' };
+}
+
+function renderClaimFeatureSummaryMatrix(featureListEl, claimFeatures, relevantData) {
+  if (!featureListEl) return;
+  featureListEl.innerHTML = '';
+
+  const rowPastelColors = ['#f0f9ff', '#f0fdf4', '#fefce8', '#fff7ed', '#fdf2f8', '#faf5ff', '#f5f5f4'];
+  const sortedFeatures = sortClaimFeaturesForSummary(claimFeatures);
+  if (sortedFeatures.length === 0) return;
+
+  let docNames = Object.keys(relevantData || {}).filter(key => Array.isArray(relevantData?.[key]));
+  if (docNames.length === 0) {
+    const fallbackDocs = (citations || [])
+      .filter(citation => citation?.status === 'completed')
+      .map((citation, index) => String(citation?.name || citation?.title || `D${index + 1}`).trim())
+      .filter(Boolean);
+    docNames = fallbackDocs;
+  }
+  if (docNames.length === 0) {
+    docNames = ['D1'];
+  }
+
+  const sortedDocs = sortDocNamesForSummary(docNames);
+
+  const table = document.createElement('table');
+  table.className = 'feature-summary-table';
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+
+  const thFeatureId = document.createElement('th');
+  thFeatureId.textContent = '구성';
+  headRow.appendChild(thFeatureId);
+
+  const thFeatureSummary = document.createElement('th');
+  thFeatureSummary.textContent = '\uAD6C\uC131\uC694\uC18C \uC694\uC57D';
+  headRow.appendChild(thFeatureSummary);
+
+  sortedDocs.forEach(docMeta => {
+    const th = document.createElement('th');
+    th.textContent = docMeta.label;
+    const rawDocName = String(docMeta.docName || '').trim();
+    if (rawDocName && rawDocName !== docMeta.label) {
+      th.title = rawDocName;
+    }
+    headRow.appendChild(th);
+  });
+
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  sortedFeatures.forEach((feature, index) => {
+    const tr = document.createElement('tr');
+    const rowColor = rowPastelColors[index % rowPastelColors.length];
+    tr.style.setProperty('--feature-summary-row-bg', rowColor);
+
+    const tdId = document.createElement('td');
+    tdId.textContent = feature?.Id || '-';
+    tr.appendChild(tdId);
+
+    const tdDesc = document.createElement('td');
+    tdDesc.textContent = feature?.Description || '-';
+    tr.appendChild(tdDesc);
+
+    sortedDocs.forEach(docMeta => {
+      const td = document.createElement('td');
+      const entries = getNoticeEntriesForFeature(relevantData, docMeta.docName, feature?.Id);
+      const status = getFeatureDocSummaryStatus(entries);
+      td.className = `feature-summary-status ${status.className}`;
+      td.textContent = status.label;
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  featureListEl.appendChild(table);
+}
+
 function renderResultTable(claimId) {
   const summaryBox = document.getElementById('claim-summary-box');
   const featureList = document.getElementById('claim-features-list');
+  const summaryTitle = summaryBox?.querySelector('h4');
   const table = document.getElementById('analysis-table');
   const tbody = document.getElementById('result-tbody');
   const emptyState = document.querySelector('.result-panel .empty-state');
+  if (summaryTitle) {
+    summaryTitle.textContent = '\uAD6C\uC131\uC694\uC18C-\uC778\uC6A9\uBC1C\uBA85 \uC694\uC57D \uD45C';
+  }
 
   selectedResultClaimId = Number.parseInt(claimId, 10);
   refreshOpinionNoticeCard();
@@ -97,12 +254,12 @@ function renderResultTable(claimId) {
     emptyState.style.display = 'block';
 
     if (data?.error) {
-      emptyState.innerHTML = `이 청구항 분석 중 오류가 발생했습니다.<br>${data.error}`;
+      emptyState.innerHTML = `\uC774 \uCCAD\uAD6C\uD56D \uBD84\uC11D \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.<br>${data.error}`;
       return;
     }
 
-    const currentStep = progress?.currentStep ? `${progress.currentStep}단계` : '대기 중';
-    const message = (progress?.stepMessage || '').trim() || '이 청구항은 대기 중이거나 분석이 진행 중입니다.';
+    const currentStep = progress?.currentStep ? `${progress.currentStep}\uB2E8\uACC4` : '\uB300\uAE30 \uC911';
+    const message = (progress?.stepMessage || '').trim() || '\uC774 \uCCAD\uAD6C\uD56D\uC740 \uB300\uAE30 \uC911\uC774\uAC70\uB098 \uBD84\uC11D\uC774 \uC9C4\uD589 \uC911\uC785\uB2C8\uB2E4.';
     emptyState.innerHTML = `${currentStep}<br>${message}`;
     return;
   }
@@ -113,31 +270,11 @@ function renderResultTable(claimId) {
   const claimFeatures = data.ClaimFeatures || [];
   const pastelColors = ['#f0f9ff', '#f0fdf4', '#fefce8', '#fff7ed', '#fdf2f8', '#faf5ff', '#f5f5f4'];
 
-  const mentionedFeatures = new Set();
-  Object.values(relevantData).flat().forEach(item => {
-    if (item.Feature) {
-      mentionedFeatures.add(item.Feature);
-    }
-  });
-
   if (claimFeatures.length > 0) {
     summaryBox.classList.remove('hidden');
-
-    claimFeatures.forEach((feat, idx) => {
-      const colorIndex = idx % pastelColors.length;
-      const bgColor = pastelColors[colorIndex];
-      const isMentioned = mentionedFeatures.has(feat.Id);
-
-      const item = document.createElement('div');
-      item.className = 'feature-summary-item';
-      item.style.backgroundColor = bgColor;
-      item.innerHTML = `
-        <span class="check-mark">${isMentioned ? '✓' : ''}</span>
-        <div class="description"><strong>${feat.Id}</strong>: ${feat.Description}</div>
-      `;
-      featureList.appendChild(item);
-    });
+    renderClaimFeatureSummaryMatrix(featureList, claimFeatures, relevantData);
   } else {
+    featureList.innerHTML = '';
     summaryBox.classList.add('hidden');
   }
 
@@ -188,7 +325,7 @@ function renderResultTable(claimId) {
   }
 
   if (!hasRow) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">매칭된 근거가 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">\uB9E4\uCE6D\uB41C \uADFC\uAC70\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</td></tr>';
   }
 }
 
@@ -215,11 +352,11 @@ function normalizeParagraphToken(value) {
   return `[${String(match[0]).padStart(4, '0')}]`;
 }
 
-function buildPositionCellHtml(position, docName) {
+function buildPositionCellHtml(position, docName, relatedContent = '') {
   const normalized = normalizePositionText(position || '');
   if (!normalized) return '-';
 
-  const markerRe = /\[(\d{1,6})\]/g;
+  const markerRe = /\[(\d{1,6})\](?:\s*-\s*\[(\d{1,6})\])?/g;
   let html = '';
   let lastIndex = 0;
   let hasMarker = false;
@@ -229,8 +366,10 @@ function buildPositionCellHtml(position, docName) {
     hasMarker = true;
     html += escapeHtmlText(normalized.slice(lastIndex, match.index));
 
-    const marker = normalizeParagraphToken(match[0]) || match[0];
-    html += `<button type="button" class="position-token" data-doc-name="${escapeHtmlText(docName)}" data-paragraph-key="${escapeHtmlText(marker)}" title="${escapeHtmlText(marker)} 문단 보기">${escapeHtmlText(marker)}</button>`;
+    const startMarker = normalizeParagraphToken(match[1]);
+    const endMarker = normalizeParagraphToken(match[2]);
+    const marker = startMarker && endMarker ? `${startMarker}-${endMarker}` : (startMarker || match[0]);
+    html += `<button type="button" class="position-token" data-doc-name="${escapeHtmlText(docName)}" data-paragraph-key="${escapeHtmlText(marker)}" data-related-content="${escapeHtmlText(relatedContent)}" title="${escapeHtmlText(marker)} \uBB38\uB2E8 \uBCF4\uAE30">${escapeHtmlText(marker)}</button>`;
 
     lastIndex = match.index + match[0].length;
   }
@@ -305,7 +444,7 @@ function createTableRow(item, docName, claimId, claimFeatures, pastelColors, ver
         </div>
       `;
     } else if (verificationFlag === 'F') {
-      const encodedReason = '찾은 내용을 한 번 더 살펴보고 검증해보세요.';
+      const encodedReason = '\uCC3E\uC740 \uB0B4\uC6A9\uC740 \uC6D0\uBB38 \uBB38\uB2E8\uC744 \uB2E4\uC2DC \uBCF4\uACE0 \uAC80\uC99D\uD574\uBCF4\uC138\uC694.';
       verificationCellHtml = `
         <div class="verification-cell">
           <span class="verification-flag is-f" data-reason="${encodedReason}">F</span>
@@ -318,7 +457,7 @@ function createTableRow(item, docName, claimId, claimFeatures, pastelColors, ver
     <td class="font-bold">${item.Feature || '-'}</td>
     <td><strong>${docName}</strong></td>
     <td>${item.Content || ''}</td>
-    <td class="text-sm text-sub">${buildPositionCellHtml(item.Position || '', docName)}</td>
+    <td class="text-sm text-sub">${buildPositionCellHtml(item.Position || '', docName, item.Content || '')}</td>
     <td><span class="match-badge ${matchClass}">${match.label}</span></td>
     <td>${verificationCellHtml}</td>
   `;
@@ -351,7 +490,7 @@ function syncNoticeClaimSelect(preferredClaimId) {
   if (analyzedClaims.length === 0) {
     const option = document.createElement('option');
     option.value = '';
-    option.textContent = '(결과 없음)';
+    option.textContent = '(\uACB0\uACFC \uC5C6\uC74C)';
     select.appendChild(option);
     select.disabled = true;
     return null;
@@ -517,6 +656,38 @@ function extractRowCellsAsTsvLine(cells) {
     .join('\t');
 }
 
+function extractRowCellsAsPlainValues(cells) {
+  return Array.from(cells).map(cell =>
+    sanitizeCellForTsv(cell?.innerText ?? cell?.textContent ?? '')
+  );
+}
+
+function escapeHtmlForClipboard(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildHtmlTableForClipboard(rows) {
+  const body = rows.map(row => {
+    const cells = row
+      .map(cell => `<td>${escapeHtmlForClipboard(cell).replace(/\n/g, '<br>')}</td>`)
+      .join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  return [
+    '<table border="1" cellspacing="0" cellpadding="2">',
+    '<tbody>',
+    body,
+    '</tbody>',
+    '</table>'
+  ].join('');
+}
+
 function buildOpinionNoticeTsv() {
   const table = document.getElementById('opinion-notice-table');
   const tbody = document.getElementById('opinion-notice-tbody');
@@ -531,7 +702,27 @@ function buildOpinionNoticeTsv() {
   bodyRows.forEach(row => {
     lines.push(extractRowCellsAsTsvLine(row.querySelectorAll('td')));
   });
-  return lines.join('\n');
+  return lines.join('\r\n');
+}
+
+function buildOpinionNoticeClipboardPayload() {
+  const table = document.getElementById('opinion-notice-table');
+  const tbody = document.getElementById('opinion-notice-tbody');
+  if (!table || !tbody || table.classList.contains('hidden')) return null;
+
+  const headerCells = table.querySelectorAll('thead th');
+  const bodyRows = tbody.querySelectorAll('tr');
+  if (!headerCells.length || !bodyRows.length) return null;
+
+  const rows = [];
+  rows.push(extractRowCellsAsPlainValues(headerCells));
+  bodyRows.forEach(row => {
+    rows.push(extractRowCellsAsPlainValues(row.querySelectorAll('td')));
+  });
+
+  const tsv = rows.map(row => row.join('\t')).join('\r\n');
+  const html = buildHtmlTableForClipboard(rows);
+  return { tsv, html };
 }
 
 async function writePlainTextToClipboard(text) {
@@ -561,18 +752,65 @@ async function writePlainTextToClipboard(text) {
   document.body.removeChild(textarea);
 }
 
+function writePayloadWithExecCommand(payload) {
+  let copied = false;
+  const listener = event => {
+    if (!event?.clipboardData) return;
+    event.preventDefault();
+    if (payload?.html) {
+      event.clipboardData.setData('text/html', payload.html);
+    }
+    event.clipboardData.setData('text/plain', payload?.tsv || '');
+    copied = true;
+  };
+
+  document.addEventListener('copy', listener);
+  try {
+    document.execCommand('copy');
+  } finally {
+    document.removeEventListener('copy', listener);
+  }
+
+  if (!copied) {
+    throw new Error('Failed to write clipboard payload with execCommand');
+  }
+}
+
+async function writeTablePayloadToClipboard(payload) {
+  if (!payload || !payload.tsv) return;
+
+  if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined') {
+    const items = {
+      'text/plain': new Blob([payload.tsv], { type: 'text/plain' })
+    };
+    if (payload.html) {
+      items['text/html'] = new Blob([payload.html], { type: 'text/html' });
+    }
+    const item = new ClipboardItem(items);
+    await navigator.clipboard.write([item]);
+    return;
+  }
+
+  if (document.queryCommandSupported && document.queryCommandSupported('copy')) {
+    writePayloadWithExecCommand(payload);
+    return;
+  }
+
+  await writePlainTextToClipboard(payload.tsv);
+}
+
 async function copyOpinionNoticeTableAsTsv() {
-  const tsv = buildOpinionNoticeTsv();
-  if (!tsv) {
-    alert('복사할 표 데이터가 없습니다.');
+  const payload = buildOpinionNoticeClipboardPayload();
+  if (!payload || !payload.tsv) {
+    alert('\uBCF5\uC0AC\uD560 \uD45C \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.');
     return;
   }
 
   try {
-    await writePlainTextToClipboard(tsv);
-    alert('의견제출통지서 표를 TSV 형식으로 복사했습니다.');
+    await writeTablePayloadToClipboard(payload);
+    alert('\uC758\uACAC\uC81C\uCD9C\uD1B5\uC9C0\uC11C \uD45C\uB97C TSV \uD615\uC2DD\uC73C\uB85C \uBCF5\uC0AC\uD588\uC2B5\uB2C8\uB2E4.');
   } catch (error) {
     console.error('Failed to copy opinion notice TSV:', error);
-    alert('표 복사에 실패했습니다.');
+    alert('\uD45C \uBCF5\uC0AC\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.');
   }
 }

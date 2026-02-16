@@ -1,4 +1,4 @@
-﻿# Update Log
+# Update Log
 
 ## 2026-02-03
 - Moved the default prompt template into `prompts/default.txt` for easy user edits.

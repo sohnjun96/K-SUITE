@@ -80,6 +80,14 @@ function formatTemplateValue(value, type) {
   if (!hasMeaningfulValue(value)) return "";
   const normalizedType = String(type || "text").trim().toLowerCase();
 
+  if (normalizedType === "boolean" || normalizedType === "bool") {
+    if (typeof value === "string") {
+      const lowered = value.trim().toLowerCase();
+      if (lowered === "true" || lowered === "false") return lowered;
+    }
+    return value ? "true" : "false";
+  }
+
   if (normalizedType === "json") {
     if (typeof value === "string") return value;
     return JSON.stringify(value, null, 2);

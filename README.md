@@ -30,6 +30,16 @@ It provides a single launcher and shared settings for three modules:
   - mock mode added
   - core-synonym toggle support in synonym editor
   - side panel launch available on most tabs (except extension settings pages)
+  - query validator hardening:
+    - stricter operator-position and grouping checks
+    - quote/parenthesis balancing checks
+    - `<near/n>` token format and range guard
+  - domain dictionary manager UI:
+    - entry search/sort, import/export JSON, clear-all
+    - per-entry edit/copy/remove actions and entry/term stats
+  - export options:
+    - query-only text export
+    - JSON bundle export (claim/elements/relations/synonyms/final query)
 - K-SCAN stability and policy updates:
   - stronger START/STOP timeout/error handling
   - clearer guidance when launched from unsupported contexts
@@ -46,7 +56,9 @@ It provides a single launcher and shared settings for three modules:
 - `K-Query`: claim-to-boolean query generator (side panel)
   - 3-layer pipeline (analysis -> expansion -> assembly/validation)
   - Per-layer rerun and progress/developer logs
-  - Mock mode and synonym controls
+  - Mock mode, synonym controls, and hardened query validation
+  - Domain dictionary seed management (UI + pipeline injection)
+  - Query export (`.txt`) and bundle export (`.json`)
 - `K-SCAN`: capture-driven similarity check tool
   - Captures `bpService.do` requests via `chrome.debugger`
   - Uses editable prompt template in `modules/k-scan/prompts/default.txt`

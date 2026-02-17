@@ -12,6 +12,20 @@ It provides a single launcher and shared settings for three modules:
   - step-by-step timing in debug flow
   - richer mock data and analysis summary table enhancements
   - position modal now shows both summary and source text
+- K-LARC citation upload pipeline enhancements:
+  - added `PDF 추가` flow with local PDF parsing (`pdf.js`) and upload support
+  - added sentinel-based citation text packaging:
+    - format: `⟪0012⟫ ... ⟪/0012⟫` (4-digit fixed width)
+    - XML: paragraph keys first, then claims, in sequential sentinel order
+    - Direct/Non-XML tab input: sentence-aware chunking around 400 chars
+    - PDF: section/page-aware extraction + sentence-aware chunking around 400 chars
+  - chunk-size policy centralized in `modules/k-larc/scripts/state.js`
+  - position display policy:
+    - result table uses sentinel key view
+    - detail/meta view includes page/section metadata for PDF evidence
+    - opinion-notice evidence view shows page/section labels for PDF entries
+- K-LARC prompt policy update:
+  - prompts now explicitly allow both opening and closing sentinels for position lookup
 - K-Query improvements:
   - mock mode added
   - core-synonym toggle support in synonym editor
@@ -27,6 +41,7 @@ It provides a single launcher and shared settings for three modules:
   - Step-level debug tabs (A/B/C/D/Quick/Verification/Final)
   - Step elapsed-time display in debug mode
   - Claim-element summary and comparison views
+  - Tab/Direct/PDF citation ingestion with sentinel-based position tracking
   - Analysis JSON export
 - `K-Query`: claim-to-boolean query generator (side panel)
   - 3-layer pipeline (analysis -> expansion -> assembly/validation)

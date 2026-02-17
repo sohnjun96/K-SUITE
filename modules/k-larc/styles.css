@@ -2,7 +2,7 @@
   /* Color Palette */
   --primary: #1766ff;       /* C91 M60 Y0 K0 */
   --primary-hover: #002c9e; /* C100 M72 Y0 K38 */
-  --larc-title-bg: #002c9e;     /* C100 M72 Y0 K38 */
+  --larc-title-bg: #002366;     /* requested card title background */
   --larc-title-hi: #1766ff;     /* C91 M60 Y0 K0 */
   --larc-neutral-soft: #95abab; /* C13 M0 Y0 K33 */
   --larc-point-line: #ffb30f;   /* C0 M30 Y94 K0 */

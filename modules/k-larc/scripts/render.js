@@ -346,36 +346,30 @@ function escapeHtmlText(value) {
     .replace(/'/g, '&#39;');
 }
 
-function normalizeParagraphToken(value) {
-  const match = String(value || '').match(/\d{1,6}/);
-  if (!match) return null;
-  return `[${String(match[0]).padStart(4, '0')}]`;
-}
-
 function buildPositionCellHtml(position, docName, relatedContent = '') {
-  const normalized = normalizePositionText(position || '');
+  const positionInfo = typeof extractPositionMarkerTokens === 'function'
+    ? extractPositionMarkerTokens(position || '')
+    : { normalized: normalizePositionText(position || ''), markers: [] };
+  const normalized = positionInfo.normalized;
   if (!normalized) return '-';
 
-  const markerRe = /\[(\d{1,6})\](?:\s*-\s*\[(\d{1,6})\])?/g;
-  let html = '';
-  let lastIndex = 0;
-  let hasMarker = false;
-  let match;
-
-  while ((match = markerRe.exec(normalized)) !== null) {
-    hasMarker = true;
-    html += escapeHtmlText(normalized.slice(lastIndex, match.index));
-
-    const startMarker = normalizeParagraphToken(match[1]);
-    const endMarker = normalizeParagraphToken(match[2]);
-    const marker = startMarker && endMarker ? `${startMarker}-${endMarker}` : (startMarker || match[0]);
-    html += `<button type="button" class="position-token" data-doc-name="${escapeHtmlText(docName)}" data-paragraph-key="${escapeHtmlText(marker)}" data-related-content="${escapeHtmlText(relatedContent)}" title="${escapeHtmlText(marker)} \uBB38\uB2E8 \uBCF4\uAE30">${escapeHtmlText(marker)}</button>`;
-
-    lastIndex = match.index + match[0].length;
+  const markers = Array.isArray(positionInfo.markers) ? positionInfo.markers : [];
+  if (markers.length === 0) {
+    return escapeHtmlText(normalized);
   }
 
+  let html = '';
+  let lastIndex = 0;
+
+  markers.forEach((token) => {
+    html += escapeHtmlText(normalized.slice(lastIndex, token.start));
+    const marker = token.marker;
+    html += `<button type="button" class="position-token" data-doc-name="${escapeHtmlText(docName)}" data-paragraph-key="${escapeHtmlText(marker)}" data-related-content="${escapeHtmlText(relatedContent)}" title="${escapeHtmlText(marker)} \uBB38\uB2E8 \uBCF4\uAE30">${escapeHtmlText(marker)}</button>`;
+    lastIndex = token.end;
+  });
+
   html += escapeHtmlText(normalized.slice(lastIndex));
-  return hasMarker ? html : escapeHtmlText(normalized);
+  return html;
 }
 
 const MATCH_LABEL_EXPLICIT = '\uB3D9\uC77C';

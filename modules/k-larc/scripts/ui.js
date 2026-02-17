@@ -1650,61 +1650,6 @@ function getAnalysisMeta() {
   return { lastRunText, stepText };
 }
 
-function normalizeParagraphLookupKey(value) {
-  const match = String(value || '').match(/\d{1,6}/);
-  if (!match) return null;
-  return `[${String(match[0]).padStart(4, '0')}]`;
-}
-
-function parseParagraphNumberFromKey(value) {
-  const normalized = normalizeParagraphLookupKey(value);
-  if (!normalized) return null;
-  const matched = normalized.match(/\d{1,6}/);
-  if (!matched) return null;
-  const number = Number.parseInt(matched[0], 10);
-  return Number.isFinite(number) ? number : null;
-}
-
-function formatParagraphNumberKey(value) {
-  const number = Number.parseInt(value, 10);
-  if (!Number.isFinite(number)) return null;
-  return `[${String(number).padStart(4, '0')}]`;
-}
-
-function parseParagraphKeyRange(rawValue) {
-  const text = String(rawValue || '').trim();
-  if (!text) return null;
-
-  const rangeMatch = text.match(/^\[(\d{1,6})\]\s*-\s*\[(\d{1,6})\]$/);
-  if (rangeMatch) {
-    const start = Number.parseInt(rangeMatch[1], 10);
-    const end = Number.parseInt(rangeMatch[2], 10);
-    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-    const normalizedStart = Math.min(start, end);
-    const normalizedEnd = Math.max(start, end);
-    const startKey = formatParagraphNumberKey(normalizedStart);
-    const endKey = formatParagraphNumberKey(normalizedEnd);
-    if (!startKey || !endKey) return null;
-    return {
-      isRange: true,
-      start: normalizedStart,
-      end: normalizedEnd,
-      label: `${startKey}-${endKey}`
-    };
-  }
-
-  const key = normalizeParagraphLookupKey(text);
-  if (!key) return null;
-  const number = parseParagraphNumberFromKey(key);
-  if (!Number.isFinite(number)) return null;
-  return {
-    isRange: false,
-    start: number,
-    end: number,
-    label: key
-  };
-}
-
 function findParagraphEntriesInRange(paragraphs, start, end) {
   if (!paragraphs || typeof paragraphs !== 'object') return [];
   if (!Number.isFinite(start) || !Number.isFinite(end)) return [];
@@ -1897,4 +1842,3 @@ function openVerificationModal(reason) {
 function closeVerificationModal() {
   closeDialogModal('verification-modal');
 }
-

@@ -149,6 +149,11 @@ body {
   cursor: not-allowed;
 }
 
+.module-card.context-blocked {
+  border-color: rgba(180, 83, 9, 0.36);
+  box-shadow: 0 7px 16px rgba(180, 83, 9, 0.12);
+}
+
 .module-card.busy {
   opacity: 0.72;
   cursor: wait;
@@ -189,6 +194,14 @@ body {
   font-size: 12px;
   color: #334155;
   line-height: 1.45;
+}
+
+.module-block-reason {
+  margin: -1px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--warn);
+  font-weight: 700;
 }
 
 .module-foot {

@@ -34,6 +34,14 @@ const PROMPT_BUNDLES = {
 const PLACEHOLDER_REGEX = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
 const textCache = new Map();
 const schemaCache = new Map();
+const PROMPT_RUNTIME_DEFAULTS = Object.freeze({
+  output_language: "ko",
+  strict_mode: true
+});
+const PROMPT_RUNTIME_TYPES = Object.freeze({
+  output_language: "text",
+  strict_mode: "boolean"
+});
 
 function isObject(value) {
   return value && typeof value === "object" && !Array.isArray(value);
@@ -64,12 +72,20 @@ function normalizeSchema(rawSchema, systemPrompt, userPrompt) {
     ...extractPlaceholders(userPrompt)
   ]);
   for (const name of allPlaceholderNames) {
+    if (!hasOwn(optional, name) && hasOwn(PROMPT_RUNTIME_DEFAULTS, name)) {
+      optional[name] = PROMPT_RUNTIME_DEFAULTS[name];
+    }
     if (!hasOwn(types, name)) {
-      types[name] = "text";
+      types[name] = PROMPT_RUNTIME_TYPES[name] || "text";
     }
   }
 
-  return { required, optional, types };
+  return {
+    required,
+    optional,
+    types,
+    placeholders: [...allPlaceholderNames]
+  };
 }
 
 function hasMeaningfulValue(value) {
@@ -101,14 +117,67 @@ function formatTemplateValue(value, type) {
   return String(value);
 }
 
+function normalizeVariableByType(name, value, type, promptKey) {
+  if (!hasMeaningfulValue(value)) return value;
+  const normalizedType = String(type || "text").trim().toLowerCase();
+
+  if (normalizedType === "boolean" || normalizedType === "bool") {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const lowered = value.trim().toLowerCase();
+      if (lowered === "true") return true;
+      if (lowered === "false") return false;
+    }
+    throw new Error(`Invalid boolean prompt variable '${name}' for '${promptKey}'. Use true/false.`);
+  }
+
+  if (normalizedType === "json") {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return value;
+      try {
+        JSON.parse(trimmed);
+      } catch {
+        throw new Error(`Invalid JSON prompt variable '${name}' for '${promptKey}'.`);
+      }
+      return value;
+    }
+    if (typeof value === "object") return value;
+    throw new Error(`Invalid JSON prompt variable '${name}' for '${promptKey}'.`);
+  }
+
+  if (normalizedType === "list") {
+    if (Array.isArray(value) || typeof value === "string") return value;
+    throw new Error(`Invalid list prompt variable '${name}' for '${promptKey}'.`);
+  }
+
+  if (normalizedType === "text") {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+    throw new Error(`Invalid text prompt variable '${name}' for '${promptKey}'.`);
+  }
+
+  return value;
+}
+
 function resolveTemplateVariables(variables, schema, promptKey) {
   const safeVariables = isObject(variables) ? variables : {};
-  const merged = { ...schema.optional, ...safeVariables };
+  const merged = { ...PROMPT_RUNTIME_DEFAULTS, ...schema.optional, ...safeVariables };
   const missing = schema.required.filter((name) => !hasMeaningfulValue(merged[name]));
   if (missing.length > 0) {
     throw new Error(
       `Missing required prompt variables for '${promptKey}': ${missing.join(", ")}`
     );
+  }
+
+  const namesToValidate = new Set([
+    ...(Array.isArray(schema.placeholders) ? schema.placeholders : []),
+    ...schema.required
+  ]);
+  for (const name of namesToValidate) {
+    if (!hasOwn(merged, name)) continue;
+    merged[name] = normalizeVariableByType(name, merged[name], schema.types[name], promptKey);
   }
   return merged;
 }

@@ -38,7 +38,9 @@ const state = {
   draftValues: {},
   dirty: false,
   launchInProgress: false,
-  lastFailedModuleId: ""
+  lastFailedModuleId: "",
+  activeTab: null,
+  launchContextByModule: {}
 };
 
 function getModuleById(moduleId) {
@@ -98,6 +100,79 @@ function closeSettingsSheet() {
 
 function getLaunchTypeLabel(launchType) {
   return launchType === "sidepanel" ? "사이드바" : "풀페이지";
+}
+
+function getModuleLaunchDescription(module) {
+  return module?.launchType === "sidepanel"
+    ? "Open in side panel on current tab"
+    : "Focus existing tab or open a new tab";
+}
+
+function getModuleLaunchContext(module) {
+  const moduleMissing = getModuleMissingFieldIds(module, state.savedValues);
+  if (moduleMissing.length > 0) {
+    return {
+      launchable: false,
+      code: "MISSING_SETTINGS",
+      reason: "공통 API Key를 먼저 저장해 주세요."
+    };
+  }
+
+  if (module.launchType !== "sidepanel") {
+    return { launchable: true, code: "", reason: "" };
+  }
+
+  const activeUrl = String(state.activeTab?.url || "");
+  if (!activeUrl) {
+    return {
+      launchable: false,
+      code: "NO_ACTIVE_TAB",
+      reason: "활성 탭을 찾지 못했습니다."
+    };
+  }
+
+  if (module.id === "k-query" && isBrowserExtensionsSettingsUrl(activeUrl)) {
+    return {
+      launchable: false,
+      code: "KQUERY_BLOCKED_TAB",
+      reason: "K-Query는 chrome://extensions / edge://extensions 탭에서 열 수 없습니다."
+    };
+  }
+
+  if (module.id === "k-scan" && isKlarcDashboardUrl(activeUrl)) {
+    return {
+      launchable: false,
+      code: "KSCAN_REQUIRES_KOMPASS",
+      reason: "K-SCAN은 KOMPASS 탭에서 열어 주세요."
+    };
+  }
+
+  if (module.id !== "k-query" && !isSidePanelCompatibleTabUrl(activeUrl)) {
+    return {
+      launchable: false,
+      code: "REQUIRES_HTTP_TAB",
+      reason: "이 모듈은 http/https 웹 페이지 탭에서만 열 수 있습니다."
+    };
+  }
+
+  return { launchable: true, code: "", reason: "" };
+}
+
+function recomputeLaunchContexts() {
+  const map = {};
+  MODULES.forEach((module) => {
+    map[module.id] = getModuleLaunchContext(module);
+  });
+  state.launchContextByModule = map;
+}
+
+async function refreshActiveTabContext() {
+  try {
+    state.activeTab = await getActiveTab();
+  } catch (_error) {
+    state.activeTab = null;
+  }
+  recomputeLaunchContexts();
 }
 
 function collectFormValues() {
@@ -233,14 +308,21 @@ function renderModuleCards() {
   moduleGrid.innerHTML = "";
 
   MODULES.forEach((module) => {
-    const moduleMissing = getModuleMissingFieldIds(module, state.savedValues);
-    const ready = moduleMissing.length === 0;
+    const context = state.launchContextByModule[module.id] || getModuleLaunchContext(module);
+    const launchable = context.launchable;
+    const isSettingsBlocked = context.code === "MISSING_SETTINGS";
+    const reasonText = String(context.reason || "").trim();
 
     const card = document.createElement("button");
     card.type = "button";
-    card.className = `module-card ${ready ? "ready" : "blocked"}`;
+    card.className = `module-card ${launchable ? "ready" : "blocked"}`;
     if (state.launchInProgress) card.classList.add("busy");
-    card.disabled = !ready || state.launchInProgress;
+    if (!launchable && !isSettingsBlocked) card.classList.add("context-blocked");
+    card.disabled = !launchable || state.launchInProgress;
+    if (reasonText) {
+      card.title = reasonText;
+      card.setAttribute("aria-label", `${module.title}: ${reasonText}`);
+    }
 
     const head = document.createElement("div");
     head.className = "module-head";
@@ -265,18 +347,23 @@ function renderModuleCards() {
 
     const launchType = document.createElement("span");
     launchType.className = "launch-type";
-    launchType.textContent =
-      module.launchType === "sidepanel" ? "현재 탭에 사이드바로 열림" : "기존 탭 전환 또는 새 탭 열기";
+    launchType.textContent = getModuleLaunchDescription(module);
 
     const cta = document.createElement("span");
     cta.className = "launch-cta";
-    cta.textContent = ready ? "열기" : "설정 필요";
+    cta.textContent = launchable ? "Open" : (isSettingsBlocked ? "Needs setup" : "Tab blocked");
 
     foot.appendChild(launchType);
     foot.appendChild(cta);
 
     card.appendChild(head);
     card.appendChild(desc);
+    if (!launchable && reasonText && !isSettingsBlocked) {
+      const reason = document.createElement("p");
+      reason.className = "module-block-reason";
+      reason.textContent = reasonText;
+      card.appendChild(reason);
+    }
     card.appendChild(foot);
 
     card.addEventListener("click", () => {
@@ -300,6 +387,7 @@ function updateGateUI() {
     setStatus(settingsStatus, "저장되지 않은 변경사항이 있습니다.", "warn");
   }
 
+  recomputeLaunchContexts();
   renderModuleCards();
 }
 
@@ -513,8 +601,23 @@ async function launchModule(moduleId) {
 
   const missing = getModuleMissingFieldIds(module, state.savedValues);
   if (missing.length > 0) {
-    setLaunchFeedback({ message: "실행 전 공통 API Key를 먼저 저장해 주세요.", tone: "error" });
+    setLaunchFeedback({ message: "Save shared API key before launching.", tone: "error" });
     openSettingsSheet();
+    return;
+  }
+
+  await refreshActiveTabContext();
+  const context = state.launchContextByModule[module.id] || getModuleLaunchContext(module);
+  if (!context.launchable) {
+    const isWarn =
+      context.code === "KQUERY_BLOCKED_TAB" ||
+      context.code === "KSCAN_REQUIRES_KOMPASS" ||
+      context.code === "REQUIRES_HTTP_TAB";
+    setLaunchFeedback({
+      message: context.reason || "This tab cannot launch the selected module.",
+      tone: isWarn ? "warn" : "error"
+    });
+    renderModuleCards();
     return;
   }
 
@@ -564,6 +667,7 @@ async function launchModule(moduleId) {
 }
 
 async function initialize() {
+  await refreshActiveTabContext();
   await reloadFromStorage(false);
 
   if (state.savedValues.sharedApiKey) {
@@ -608,6 +712,19 @@ reloadSettingsBtn.addEventListener("click", async () => {
 retryLaunchBtn.addEventListener("click", async () => {
   if (!state.lastFailedModuleId) return;
   await launchModule(state.lastFailedModuleId);
+});
+
+window.addEventListener("focus", () => {
+  void refreshActiveTabContext().then(() => {
+    renderModuleCards();
+  });
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  void refreshActiveTabContext().then(() => {
+    renderModuleCards();
+  });
 });
 
 initialize();

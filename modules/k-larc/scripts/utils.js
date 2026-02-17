@@ -120,6 +120,14 @@ const LARC_PROMPT_BUNDLES = Object.freeze({
 const LARC_PROMPT_PLACEHOLDER_REGEX = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
 const larcPromptTextCache = new Map();
 const larcPromptSchemaCache = new Map();
+const LARC_PROMPT_RUNTIME_DEFAULTS = Object.freeze({
+  output_language: 'ko',
+  strict_mode: true
+});
+const LARC_PROMPT_RUNTIME_TYPES = Object.freeze({
+  output_language: 'text',
+  strict_mode: 'boolean'
+});
 
 function hasOwn(source, key) {
   return Object.prototype.hasOwnProperty.call(source, key);
@@ -150,12 +158,20 @@ function normalizePromptSchema(rawSchema, systemTemplate, userTemplate) {
     ...extractPromptPlaceholders(userTemplate)
   ]);
   placeholders.forEach((name) => {
+    if (!hasOwn(optional, name) && hasOwn(LARC_PROMPT_RUNTIME_DEFAULTS, name)) {
+      optional[name] = LARC_PROMPT_RUNTIME_DEFAULTS[name];
+    }
     if (!hasOwn(types, name)) {
-      types[name] = 'text';
+      types[name] = LARC_PROMPT_RUNTIME_TYPES[name] || 'text';
     }
   });
 
-  return { required, optional, types };
+  return {
+    required,
+    optional,
+    types,
+    placeholders: [...placeholders]
+  };
 }
 
 function hasPromptValue(value) {
@@ -187,13 +203,66 @@ function formatPromptValue(value, type) {
   return String(value);
 }
 
+function normalizePromptVariableByType(name, value, type, promptKey) {
+  if (!hasPromptValue(value)) return value;
+  const normalizedType = String(type || 'text').trim().toLowerCase();
+
+  if (normalizedType === 'boolean' || normalizedType === 'bool') {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const lowered = value.trim().toLowerCase();
+      if (lowered === 'true') return true;
+      if (lowered === 'false') return false;
+    }
+    throw new Error(`Invalid boolean prompt variable '${name}' for '${promptKey}'. Use true/false.`);
+  }
+
+  if (normalizedType === 'json') {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return value;
+      try {
+        JSON.parse(trimmed);
+      } catch (_error) {
+        throw new Error(`Invalid JSON prompt variable '${name}' for '${promptKey}'.`);
+      }
+      return value;
+    }
+    if (typeof value === 'object') return value;
+    throw new Error(`Invalid JSON prompt variable '${name}' for '${promptKey}'.`);
+  }
+
+  if (normalizedType === 'list') {
+    if (Array.isArray(value) || typeof value === 'string') return value;
+    throw new Error(`Invalid list prompt variable '${name}' for '${promptKey}'.`);
+  }
+
+  if (normalizedType === 'text') {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    throw new Error(`Invalid text prompt variable '${name}' for '${promptKey}'.`);
+  }
+
+  return value;
+}
+
 function resolvePromptVariables(schema, variables, promptKey) {
   const safeVariables = isPlainObject(variables) ? variables : {};
-  const merged = { ...schema.optional, ...safeVariables };
+  const merged = { ...LARC_PROMPT_RUNTIME_DEFAULTS, ...schema.optional, ...safeVariables };
   const missing = schema.required.filter(name => !hasPromptValue(merged[name]));
   if (missing.length > 0) {
     throw new Error(`Missing required prompt variables for '${promptKey}': ${missing.join(', ')}`);
   }
+
+  const namesToValidate = new Set([
+    ...(Array.isArray(schema.placeholders) ? schema.placeholders : []),
+    ...schema.required
+  ]);
+  namesToValidate.forEach((name) => {
+    if (!hasOwn(merged, name)) return;
+    merged[name] = normalizePromptVariableByType(name, merged[name], schema.types[name], promptKey);
+  });
   return merged;
 }
 
@@ -744,12 +813,33 @@ function splitPositions(value) {
     .filter(Boolean);
 }
 
+function formatParagraphNumberKey(value) {
+  const number = Number.parseInt(value, 10);
+  if (!Number.isFinite(number)) return null;
+  return `[${String(number).padStart(4, '0')}]`;
+}
+
+function normalizeParagraphLookupKey(value) {
+  const match = String(value || '').match(/\d{1,6}/);
+  if (!match) return null;
+  return formatParagraphNumberKey(match[0]);
+}
+
+function parseParagraphNumberFromKey(value) {
+  const normalized = normalizeParagraphLookupKey(value);
+  if (!normalized) return null;
+  const matched = normalized.match(/\d{1,6}/);
+  if (!matched) return null;
+  const number = Number.parseInt(matched[0], 10);
+  return Number.isFinite(number) ? number : null;
+}
+
 function parseNumericPositionToken(token) {
   const text = String(token || '').trim();
   if (!text) return null;
 
   const rangeMatch = text.match(
-    /^[\[\(<]?\s*(\d{1,6})\s*[\]\)>]?\s*(?:-|~|–|—)\s*[\[\(<]?\s*(\d{1,6})\s*[\]\)>]?$/
+    /^[\[\(<]?\s*(\d{1,6})\s*[\]\)>]?\s*(?:-|~|to|through|until|from)\s*[\[\(<]?\s*(\d{1,6})\s*[\]\)>]?$/i
   );
   if (rangeMatch) {
     const a = Number.parseInt(rangeMatch[1], 10);
@@ -771,9 +861,56 @@ function parseNumericPositionToken(token) {
 }
 
 function formatNumericPositionRange(start, end) {
-  const pad = value => String(value).padStart(4, '0');
-  if (start === end) return `[${pad(start)}]`;
-  return `[${pad(start)}]-[${pad(end)}]`;
+  const startKey = formatParagraphNumberKey(start);
+  const endKey = formatParagraphNumberKey(end);
+  if (!startKey || !endKey) return '';
+  if (start === end) return startKey;
+  return `${startKey}-${endKey}`;
+}
+
+function parseParagraphKeyRange(rawValue) {
+  const text = String(rawValue || '').trim();
+  if (!text) return null;
+
+  const numeric = parseNumericPositionToken(text);
+  if (!numeric) return null;
+
+  const startKey = formatParagraphNumberKey(numeric.start);
+  const endKey = formatParagraphNumberKey(numeric.end);
+  if (!startKey || !endKey) return null;
+
+  return {
+    isRange: numeric.start !== numeric.end,
+    start: numeric.start,
+    end: numeric.end,
+    label: numeric.start === numeric.end ? startKey : `${startKey}-${endKey}`
+  };
+}
+
+function extractPositionMarkerTokens(positionText) {
+  const normalized = normalizePositionText(positionText || '');
+  if (!normalized) {
+    return { normalized: '', markers: [] };
+  }
+
+  const markerRe = /\[(\d{1,6})\](?:\s*-\s*\[(\d{1,6})\])?/g;
+  const markers = [];
+  let match;
+  while ((match = markerRe.exec(normalized)) !== null) {
+    const startMarker = formatParagraphNumberKey(match[1]);
+    const endMarker = formatParagraphNumberKey(match[2]);
+    if (!startMarker) continue;
+
+    const marker = endMarker ? `${startMarker}-${endMarker}` : startMarker;
+    markers.push({
+      marker,
+      start: match.index,
+      end: match.index + match[0].length,
+      isRange: Boolean(endMarker)
+    });
+  }
+
+  return { normalized, markers };
 }
 
 function normalizePositionTokens(value) {

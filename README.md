@@ -53,6 +53,9 @@ It provides a single launcher and shared settings for three modules:
   - Claim-element summary and comparison views
   - Tab/Direct/PDF citation ingestion with sentinel-based position tracking
   - Analysis JSON export
+  - Detailed docs:
+    - [K-LARC 5-layer judgment system](modules/k-larc/docs/k-larc-5-layer-judgment-system.md)
+    - [K-LARC citation preprocessing process](modules/k-larc/docs/k-larc-citation-preprocessing-process.md)
 - `K-Query`: claim-to-boolean query generator (side panel)
   - 3-layer pipeline (analysis -> expansion -> assembly/validation)
   - Per-layer rerun and progress/developer logs

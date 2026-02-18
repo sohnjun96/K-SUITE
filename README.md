@@ -24,7 +24,7 @@ K-SUITE는 특허 업무 지원을 위한 Chrome MV3 확장 프로그램 모음�
 3. `압축해제된 확장 프로그램을 로드`를 클릭합니다.
 4. 이 저장소 루트(`manifest.json`이 있는 위치)를 선택합니다.
 5. K-SUITE 팝업을 열고 공통 설정을 저장합니다.
-   - `OpenWebUI Base URL` (기본: `http://10.133.111.32:8080`)
+   - `OpenWebUI Base URL` 
    - `Shared API Key / Token`
 6. 홈 런처에서 원하는 모듈을 실행합니다.
 
